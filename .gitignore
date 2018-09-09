@@ -50,3 +50,9 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Other file type
+*.xls*
+*.txt
+*.doc
+*.pdf
