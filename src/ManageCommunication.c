@@ -162,6 +162,9 @@ static void FSM(FSMCondition_t * pstFSMStep, u08 data)
 
 static void SaveWebCmd(FSMCondition_t * pstFSMStep)
 {
+	if (pstFSMStep->bAnalyseStatus) {
+		
+	}
 }
 
 static void NextStepCheck(FSMCondition_t * pstFSMStep)

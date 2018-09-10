@@ -30,8 +30,8 @@ typedef struct tagCmd_t {
 	u08 len;			// 命令字节数
 	u08 * pBuf;			// 完整命令包
 	char * pOrderNo;	// 相应订单号
-	struct tagCmd_t * pPrevCmd;
-	struct tagCmd_t * pNextCmd;
+	struct tagCmd_t * pstPrevCmd;
+	struct tagCmd_t * pstNextCmd;
 } cmd_t;
 
 // 跟踪开启后待闭端口,如超时程序关闭
@@ -42,12 +42,12 @@ typedef struct {
 	u08 cmd;
 	char * pOrderNo;	/* 开启反馈成功后用户未使用,端口
 						自动关闭,则反馈相应订单作退款处理 */
-	struct tagCmd_t * pPrevChk;
-	struct tagCmd_t * pNextChk;
+	struct tagCmd_t * pstPrevChk;
+	struct tagCmd_t * pstNextChk;
 } chk_t;
 
 // 站端
-typedef struct tagStation_t{
+typedef struct tagStation_t {
 	u64 id;				// 站id号,即手机号
 	u08 status;			/* 站状态,0-OK,1-未初始化,2-无法通信,
 						3-不能操作 */
@@ -67,20 +67,20 @@ typedef struct tagStation_t{
 	cmd_t * pCmd;		// 待处理命令
 	chk_t * pChk;		// 待检查状态端口
 	struct sockaddr_in	addr;
-	struct tagStation_t * pPrev;
-	struct tagStation_t * pNext;
+	struct tagStation_t * pstPrev;
+	struct tagStation_t * pstNext;
 } station_t;
 
 // 站端头
 typedef struct {
-	station_t * pHead;	// 站链表头指针
+	station_t * pstHead;// 站链表头指针
 	station_t ** ppArr;	// 站指针数组,128站设置一个指针
 	u32 num;			// 站计数
 	int SvrFd;			// station listen socket fd
 } devi_t;
 
 // web端
-typedef struct tagServer_t{
+typedef struct tagServer_t {
 	int fd;				// web端连接文件描述符
 	time_t launch;		// web连接建立时间,创建时记录,终生不变
 	time_t update;		// web端最后一次更新时间
@@ -91,14 +91,28 @@ typedef struct tagServer_t{
 
 // web端头
 typedef struct {
-	server_t * pHead;	// web端链表头指针
+	server_t * pstHead;	// web端链表头指针
 	server_t ** ppArr;	// web端指针数组,128站设置一个指针
 	u32 num;			// web端计数
 	int SvrFd;			// webserver linsten socket fd
 } web_t;
 
+// 起始命令列表端头
+typedef struct tagOnceCmdList_t {
+	station_t * pstHead;
+	struct tagOnceCmdList_t * pstPrev;
+	struct tagOnceCmdList_t * pstNext;
+} OnceCmdList_t;
+
+// 跟踪命令列表端头
+typedef struct tagTraceCmdList_t {
+	station_t * pstHead;
+	struct tagTraceCmdList_t * pstPrev;
+	struct tagTraceCmdList_t * pstNext;
+} TraceCmdList_t;
+
 // 站端及web端接收数据存储
-typedef struct tagRecv_t{
+typedef struct tagRecv_t {
 	u08 * pBuf;
 	u16 len;
 	time_t time;
@@ -109,38 +123,48 @@ typedef struct tagRecv_t{
 		};
 		struct sockaddr_in addr;
 	};
-	struct tagRecv_t * pPrevRecv;
-	struct tagRecv_t * pNextRecv;
+	struct tagRecv_t * pstPrev;
+	struct tagRecv_t * pstNext;
 } recv_t;
 
 // web接收存储头
 typedef struct {
-	recv_t * pHead;		// web端链表头指针
+	recv_t * pstHead;	// web端链表头指针
 	u32 num;			// web端计数
 } storage_t;
 
 typedef struct {
-	storage_t RecvStation;		// 站信息存储
-	storage_t RecvServer;		// 服务器信息存储
-	devi_t DeviceHead;			// 站链表头
-	web_t WebSvrHead;			// web链表头
+	devi_t stDeviceHead;		// 站链表头
+	web_t stWebSvrHead;			// web链表头
+	OnceCmdList_t stOnCmdHead;	// 起始命令列表端头
+	TraceCmdList_t stTrCmdHead;	// 跟踪命令列表端头
+	storage_t stRecvStation;	// 站信息存储
+	storage_t stRecvServer;		// 服务器信息存储
 	int SemRcSt;				// 站接收信息存储信号量
 	int SemRcSr;				// web接收信息存储信号量
 	int SemDvHd;				// 站更新信号量
 	int	SemWbHd;				// web更新信号量
 	int	SemPort;				// 充电站端口信号量
-	bool ThdManComm;			// ManageCommunication线程状态
-	bool ThdManDevi;			// 设备管理线程状态
+	bool ThdManComm;			// ManageCommunication线程标记
+	bool ThdManDevi;			// 设备管理线程标记
+	bool ThdManOnceCmd;			// 起始命令线程运行标记
+	bool ThdManTraceCmd;		// 跟踪命令线程运行标记
 	pthread_mutex_t CommMutex;	// ManageCommunication线程互斥锁
-	pthread_cond_t CommCond;	// ManageCommunication线程容器
+	pthread_cond_t  CommCond;	// ManageCommunication线程容器
 	pthread_mutex_t DeviMutex;	// ManageDevice线程互斥锁
-	pthread_cond_t DeviCond;	// ManageDevice线程容器
+	pthread_cond_t  DeviCond;	// ManageDevice线程容器
+	pthread_mutex_t OnCmdMutex;	// OnceCmdList线程互斥锁
+	pthread_cond_t  OnCmdCond;	// OncecmdList线程容器
+	pthread_mutex_t TrCmdMutex;	// TraceCmdList线程互斥锁
+	pthread_cond_t  TrCmdCond;	// TraceCmdList线程容器
 } data_t;
 
-#define RCST		(gData.RecvStation)
-#define RCSR		(gData.RecvServer)
-#define DVHD		(gData.DeviceHead)
-#define WBHD		(gData.WebSvrHead)
+#define DVHD		(gData.stDeviceHead)
+#define WBHD		(gData.stWebSvrHead)
+#define OCHD		(gData.stOnCmdHead)
+#define TCHD		(gData.stTrCmdHead)
+#define RCST		(gData.stRecvStation)
+#define RCSR		(gData.stRecvServer)
 #define SEMRCST		(gData.SemRcSt)
 #define SEMRCSR		(gData.SemRcSr)
 #define SEMDVHD		(gData.SemDvHd)
@@ -148,10 +172,16 @@ typedef struct {
 #define SEMPORT		(gData.SemPort)
 #define THDCOMMSLP	(gData.ThdManComm)
 #define THDDEVISLP	(gData.ThdManDevi)
+#define THDONCESLP	(gData.ThdManOnceCmd)
+#define THDTRACSLP	(gData.ThdManTraceCmd)
 #define COMMMUTEX	(gData.CommMutex)
 #define COMMCOND	(gData.CommCond)
 #define DEVIMUTEX	(gData.DeviMutex)
 #define DEVICOND	(gData.DeviCond)
+#define ONCEMUTEX	(gData.OnCmdMutex)
+#define ONCECOND	(gData.OnCmdCond)
+#define TRACEMUTEX	(gData.TrCmdMutex)
+#define TRACECOND	(gData.TrCmdCond)
 
 // const常量
 extern const long	BASETIME;

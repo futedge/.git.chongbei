@@ -8,34 +8,55 @@
 void init(void)
 {
 	memset(&gData, 0, sizeof(data_t));
-	if (!(RCST.pHead = (recv_t *)malloc	(sizeof(recv_t)))) {
-		perror("Not enough memory malloc for RecvStation.pHead:");
+	// DVHD init
+	if (!(DVHD.pstHead = (station_t *)malloc(sizeof(station_t)))) {
+		perror("Not enough memory malloc for RecvServer.pstHead:");
 		exit(1);
 	}
-	memset(RCST.pHead, 0, sizeof(recv_t));
-	RCST.pHead->pPrevRecv = RCST.pHead;
-	RCST.pHead->pNextRecv = RCST.pHead;
-	if (!(RCSR.pHead = (recv_t *)malloc(sizeof(recv_t)))) {
-		perror("Not enough memory malloc for RecvServer.pHead:");
+	memset(DVHD.pstHead, 0, sizeof(station_t));
+	DVHD.pstHead->pstPrev = DVHD.pstHead;
+	DVHD.pstHead->pstNext = DVHD.pstHead;
+	// WBHD init
+	if (!(WBHD.pstHead = (server_t *)malloc(sizeof(server_t)))) {
+		perror("Not enough memory malloc for RecvServer.pstHead:");
 		exit(1);
 	}
-	memset(RCSR.pHead, 0, sizeof(recv_t));
-	RCSR.pHead->pPrevRecv = RCSR.pHead;
-	RCSR.pHead->pNextRecv = RCSR.pHead;
-	if (!(DVHD.pHead = (station_t *)malloc(sizeof(station_t)))) {
-		perror("Not enough memory malloc for RecvServer.pHead:");
+	memset(WBHD.pstHead, 0, sizeof(server_t));
+	WBHD.pstHead->pstPrev = WBHD.pstHead;
+	WBHD.pstHead->pstNext = WBHD.pstHead;
+	// OCHD init
+	if (!(OCHD.pstHead = (recv_t *)malloc	(sizeof(recv_t)))) {
+		perror("Not enough memory malloc for RecvStation.pstHead:");
 		exit(1);
 	}
-	memset(DVHD.pHead, 0, sizeof(station_t));
-	DVHD.pHead->pPrev = DVHD.pHead;
-	DVHD.pHead->pNext = DVHD.pHead;
-	if (!(WBHD.pHead = (server_t *)malloc(sizeof(server_t)))) {
-		perror("Not enough memory malloc for RecvServer.pHead:");
+	memset(OCHD.pstHead, 0, sizeof(recv_t));
+	OCHD.pstHead->pstPrev = OCHD.pstHead;
+	OCHD.pstHead->pstNext = OCHD.pstHead;
+	// TCHD init
+	if (!(TCHD.pstHead = (recv_t *)malloc	(sizeof(recv_t)))) {
+		perror("Not enough memory malloc for RecvStation.pstHead:");
 		exit(1);
 	}
-	memset(WBHD.pHead, 0, sizeof(server_t));
-	WBHD.pHead->pPrev = WBHD.pHead;
-	WBHD.pHead->pNext = WBHD.pHead;
+	memset(TCHD.pstHead, 0, sizeof(recv_t));
+	TCHD.pstHead->pstPrev = TCHD.pstHead;
+	TCHD.pstHead->pstNext = TCHD.pstHead;
+	// RCST init
+	if (!(RCST.pstHead = (recv_t *)malloc	(sizeof(recv_t)))) {
+		perror("Not enough memory malloc for RecvStation.pstHead:");
+		exit(1);
+	}
+	memset(RCST.pstHead, 0, sizeof(recv_t));
+	RCST.pstHead->pstPrev = RCST.pstHead;
+	RCST.pstHead->pstNext = RCST.pstHead;
+	// RCSR init
+	if (!(RCSR.pstHead = (recv_t *)malloc(sizeof(recv_t)))) {
+		perror("Not enough memory malloc for RecvServer.pstHead:");
+		exit(1);
+	}
+	memset(RCSR.pstHead, 0, sizeof(recv_t));
+	RCSR.pstHead->pstPrev = RCSR.pstHead;
+	RCSR.pstHead->pstNext = RCSR.pstHead;
+	// set semid
 	SEMRCST = MakeSemid(SEMBASE);
 	SetSemidVal(SEMRCST, SEMVAL);
 	SEMRCSR = MakeSemid(SEMBASE);
