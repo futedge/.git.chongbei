@@ -39,6 +39,7 @@ void * ListenDevice(void * arg)
 		if (ret > 0) {
 			SaveStationMsg(pBuf, ret, NowTime, &addr);
 			if (THDDEVISLP) {
+				THDDEVISLP = FALSE;
 				pthread_mutex_lock(&DEVIMUTEX);
 				pthread_cond_signal(&DEVICOND);
 				pthread_mutex_unlock(&DEVIMUTEX);

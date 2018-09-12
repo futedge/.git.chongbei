@@ -97,19 +97,12 @@ typedef struct {
 	int SvrFd;			// webserver linsten socket fd
 } web_t;
 
-// 起始命令列表端头
-typedef struct tagOnceCmdList_t {
-	station_t * pstHead;
-	struct tagOnceCmdList_t * pstPrev;
-	struct tagOnceCmdList_t * pstNext;
-} OnceCmdList_t;
-
-// 跟踪命令列表端头
-typedef struct tagTraceCmdList_t {
-	station_t * pstHead;
-	struct tagTraceCmdList_t * pstPrev;
-	struct tagTraceCmdList_t * pstNext;
-} TraceCmdList_t;
+// 发送命令列表端头
+typedef struct tagSendCmd_t {
+	station_t * pstStation;
+	struct tagSendCmd_t * pstPrev;
+	struct tagSendCmd_t * pstNext;
+} SendCmd_t;
 
 // 站端及web端接收数据存储
 typedef struct tagRecv_t {
@@ -135,15 +128,17 @@ typedef struct {
 
 typedef struct {
 	devi_t stDeviceHead;		// 站链表头
-	web_t stWebSvrHead;			// web链表头
-	OnceCmdList_t stOnCmdHead;	// 起始命令列表端头
-	TraceCmdList_t stTrCmdHead;	// 跟踪命令列表端头
+	web_t  stWebSvrHead;		// web链表头
+	SendCmd_t * stOnCmdHead;	// 单发命令列表端头
+	SendCmd_t * stTrCmdHead;	// 跟踪命令列表端头
 	storage_t stRecvStation;	// 站信息存储
 	storage_t stRecvServer;		// 服务器信息存储
-	int SemRcSt;				// 站接收信息存储信号量
-	int SemRcSr;				// web接收信息存储信号量
 	int SemDvHd;				// 站更新信号量
 	int	SemWbHd;				// web更新信号量
+	int SemOnCmd;				// 单发命令存储信号量
+	int SemTrCmd;				// 跟踪命令存储信号量
+	int SemRcSt;				// 站接收信息存储信号量
+	int SemRcSr;				// web接收信息存储信号量
 	int	SemPort;				// 充电站端口信号量
 	bool ThdManComm;			// ManageCommunication线程标记
 	bool ThdManDevi;			// 设备管理线程标记
@@ -162,13 +157,15 @@ typedef struct {
 #define DVHD		(gData.stDeviceHead)
 #define WBHD		(gData.stWebSvrHead)
 #define OCHD		(gData.stOnCmdHead)
-#define TCHD		(gData.stTrCmdHead)
+#define TRHD		(gData.stTrCmdHead)
 #define RCST		(gData.stRecvStation)
 #define RCSR		(gData.stRecvServer)
-#define SEMRCST		(gData.SemRcSt)
-#define SEMRCSR		(gData.SemRcSr)
 #define SEMDVHD		(gData.SemDvHd)
 #define SEMWBHD		(gData.SemWbHd)
+#define SEMOCCMD	(gData.SemOnCmd)
+#define SEMTRCMD	(gData.SemTrCmd)
+#define SEMRCST		(gData.SemRcSt)
+#define SEMRCSR		(gData.SemRcSr)
 #define SEMPORT		(gData.SemPort)
 #define THDCOMMSLP	(gData.ThdManComm)
 #define THDDEVISLP	(gData.ThdManDevi)

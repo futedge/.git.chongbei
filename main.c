@@ -2,7 +2,7 @@
 #include "ListenServer.h"
 #include "ManageCommunication.h"
 #include "ManageDevice.h"
-#include "ManageThread.h"
+#include "ManageOnceCmd.h"
 #include "data.h"
 
 void init(void)
@@ -25,23 +25,23 @@ void init(void)
 	WBHD.pstHead->pstPrev = WBHD.pstHead;
 	WBHD.pstHead->pstNext = WBHD.pstHead;
 	// OCHD init
-	if (!(OCHD.pstHead = (recv_t *)malloc	(sizeof(recv_t)))) {
-		perror("Not enough memory malloc for RecvStation.pstHead:");
+	if (!(OCHD = (SendCmd_t *)malloc(sizeof(SendCmd_t)))) {
+		perror("Not enough memory malloc for OnSendCmd:");
 		exit(1);
 	}
-	memset(OCHD.pstHead, 0, sizeof(recv_t));
-	OCHD.pstHead->pstPrev = OCHD.pstHead;
-	OCHD.pstHead->pstNext = OCHD.pstHead;
+	memset(OCHD, 0, sizeof(SendCmd_t));
+	OCHD->pstPrev = OCHD;
+	OCHD->pstNext = OCHD;
 	// TCHD init
-	if (!(TCHD.pstHead = (recv_t *)malloc	(sizeof(recv_t)))) {
-		perror("Not enough memory malloc for RecvStation.pstHead:");
+	if (!(TCHD = (SendCmd_t *)malloc(sizeof(SendCmd_t)))) {
+		perror("Not enough memory malloc for TrSendCmd:");
 		exit(1);
 	}
-	memset(TCHD.pstHead, 0, sizeof(recv_t));
-	TCHD.pstHead->pstPrev = TCHD.pstHead;
-	TCHD.pstHead->pstNext = TCHD.pstHead;
+	memset(TCHD, 0, sizeof(SendCmd_t));
+	TCHD->pstPrev = TCHD;
+	TCHD->pstNext = TCHD;
 	// RCST init
-	if (!(RCST.pstHead = (recv_t *)malloc	(sizeof(recv_t)))) {
+	if (!(RCST.pstHead = (recv_t *)malloc(sizeof(recv_t)))) {
 		perror("Not enough memory malloc for RecvStation.pstHead:");
 		exit(1);
 	}
@@ -57,14 +57,18 @@ void init(void)
 	RCSR.pstHead->pstPrev = RCSR.pstHead;
 	RCSR.pstHead->pstNext = RCSR.pstHead;
 	// set semid
-	SEMRCST = MakeSemid(SEMBASE);
-	SetSemidVal(SEMRCST, SEMVAL);
-	SEMRCSR = MakeSemid(SEMBASE);
-	SetSemidVal(SEMRCSR, SEMVAL);
 	SEMDVHD = MakeSemid(SEMBASE);
 	SetSemidVal(SEMDVHD, SEMVAL);
 	SEMWBHD = MakeSemid(SEMBASE);
 	SetSemidVal(SEMWBHD, SEMVAL);
+	SEMOCCMD = MakeSemid(SEMBASE);
+	SetSemidVal(SEMOCCMD, SEMVAL);
+	SEMTRCMD = MakeSemid(SEMBASE);
+	SetSemidVal(SEMTRCMD, SEMVAL);
+	SEMRCST = MakeSemid(SEMBASE);
+	SetSemidVal(SEMRCST, SEMVAL);
+	SEMRCSR = MakeSemid(SEMBASE);
+	SetSemidVal(SEMRCSR, SEMVAL);
 	SEMPORT = MakeSemid(SEMBASE);
 	SetSemidVal(SEMPORT, SEMVAL);
 	if (pthread_mutex_init(&COMMMUTEX, NULL)) {
@@ -83,11 +87,27 @@ void init(void)
 		perror("cond init error:");
 		exit(1);
 	}
+	if (pthread_mutex_init(&ONCEMUTEX, NULL)) {
+		perror("mutex init error:");
+		exit(1);
+	} 
+    if (pthread_cond_init(&ONCECOND, NULL)) {
+		perror("cond init error:");
+		exit(1);
+	}
+	if (pthread_mutex_init(&TRACEMUTEX, NULL)) {
+		perror("mutex init error:");
+		exit(1);
+	} 
+    if (pthread_cond_init(&TRACECOND, NULL)) {
+		perror("cond init error:");
+		exit(1);
+	}
 }
 
 int main(int argc, char ** argv)
 {
-	pthread_t ThdLstDev, ThdLstSvr, ThdComm, ThdDev, ThdMan;
+	pthread_t ThdLstDev, ThdLstSvr, ThdComm, ThdDev, ThdOnCmd, ThdTrCmd;
 	pthread_attr_t ThdAttr;
 	
 	if (argc > 2) {
@@ -123,9 +143,14 @@ int main(int argc, char ** argv)
 		perror("Create ThdDev error:");
 		exit(1);
 	}
-	// 创建线程管理子线程
-	if (pthread_create(&ThdMan, &ThdAttr, ManageThread, NULL)) {
-		perror("Create ThdMan error:");
+	// 创建单发命令子线程
+	if (pthread_create(&ThdOnCmd, &ThdAttr, ManageOnceCmd, NULL)) {
+		perror("Create ThdOnceCmd error:");
+		exit(1);
+	}
+	// 创建跟踪命令子线程
+	if (pthread_create(&ThdTrCmd, &ThdAttr, ManageTraceCmd, NULL)) {
+		perror("Create ThdTraceCmd error:");
 		exit(1);
 	}
 	pthread_attr_destroy(&ThdAttr);

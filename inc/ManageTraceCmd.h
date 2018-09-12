@@ -1,7 +1,7 @@
-#ifndef _MANAGETHREAD_H
-#define _MANAGETHREAD_H
+#ifndef _MANAGETRACECMD_H
+#define _MANAGETRACECMD_H
 #include "comm.h"
 
-void * ManageThread(void * arg);
+void * ManageTraceCmd(void * arg);
 #endif
 /***************************scale***********************************/

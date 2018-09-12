@@ -156,7 +156,7 @@ static void AddServer(int SvrFd, time_t NowTime)
 	P(SEMWBHD);
 	pServer->pPrev = WBHD.pHead->pPrev;
 	pServer->pNext = WBHD.pHead;
-	pServer->pPrev->pNext = pServer;
+	WBHD.pHead->pPrev->pNext = pServer;
 	WBHD.pHead->pPrev = pServer;
 	++(WBHD.num);
 	V(SEMWBHD);

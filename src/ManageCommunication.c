@@ -4,8 +4,8 @@
 static void DeleteThis(recv_t ** ppRecv)
 {
 	recv_t * pRecvTmp;
-	(*ppRecv)->pPrevRecv->pNextRecv = (*ppRecv)->pNextRecv;
-	(*ppRecv)->pNextRecv->pPrevRecv = (*ppRecv)->pPrevRecv;
+	(*ppRecv)->pPrevRecv->pstNext = (*ppRecv)->pstNext;
+	(*ppRecv)->pstNext->pPrevRecv = (*ppRecv)->pPrevRecv;
 	pRecvTmp = (*ppRecv);
 	(*ppRecv) = (*ppRecv)->pPrevRecv;
 	free(pRecvTmp->pBuf);
@@ -19,7 +19,7 @@ static void reply(void)
 	int count = 0;
 	bool flag;
 	P(SEMRCSR);
-	pRecv = RCSR.pHead->pNextRecv;
+	pRecv = RCSR.pHead->pstNext;
 	V(SEMRCSR);
 	while (pRecv != RCSR.pHead) {
 		++count;
@@ -33,7 +33,7 @@ static void reply(void)
 		write(pRecv->fd, pRecv->pBuf, pRecv->len);
 		free(pRecv->pBuf);
 		DeleteThat(&pRecv);
-		pRecv = pRecv->pNextRecv;
+		pRecv = pRecv->pstNext;
 		if (flag) {
 			flag = FALSE;
 			V(SEMRCSR);
@@ -163,7 +163,24 @@ static void FSM(FSMCondition_t * pstFSMStep, u08 data)
 static void SaveWebCmd(FSMCondition_t * pstFSMStep)
 {
 	if (pstFSMStep->bAnalyseStatus) {
-		
+		SendCmd_t pstCmd = NULL;
+		if (!(pstCmd = (SendCmd_t *)mailloc(sizeof(SendCmd_t)))) {
+			perror("Not enough memory malloc for SendCmdTmp:");
+			exit(1);
+		}
+		memset(pstCmd, 0, sizeof(SendCmd_t));
+		P(SEMOCCMD);
+		pstCmd.pstPrev = TRHD->pstPrev;
+		pstCmd.pstNext = TRHD;
+		TRHD->pstPrev->pstNext = pstCmd;
+		TRHD->pstPrev = pstCmd;
+		V(SEMOCCMD);
+		if (THDONCESLP) {
+			THDONCESLP = FALSE;
+			pthread_mutex_lock(&ONCEMUTEX);
+			pthread_cond_signal(&ONCECOND);
+			pthread_mutex_unlock(&ONCEMUTEX);
+		}
 	}
 }
 
@@ -204,6 +221,7 @@ static void analyse(recv_t * pRecv)
 			break;
 		case '/' :
 			SaveWebCmd(&stFSMStep);
+			InitFSM(&stFSMStep);
 			break;
 		default :
 			FSM(&stFSMStep, pRecv->pBuf[i]);
@@ -214,45 +232,38 @@ static void analyse(recv_t * pRecv)
 
 static void ProcessSvrMsg(void)
 {
-	recv_t * pRecv;
-	int count = 0;
-	bool flag = FALSE;
+	recv_t * pRecv, * pstTmp;
 	P(SEMRCSR);
-	pRecv = RCSR.pHead->pNextRecv;
+	pRecv = RCSR.pHead->pstNext;
 	V(SEMRCSR);
 	while (pRecv != RCSR.pHead) {
-		++count;
+		pstTmp = pRecv->pstNext;
 		// 临界点，ListenServer线程会在此添加新节点
-		if (RCSR.num == count) {
-			flag = TRUE;
-		}
-		if (flag) {
+		if (pstTmp == RCSR.pHead) {
 			P(SEMRCSR);
 		}
 		analyse(pRecv);
 		DeleteThis(&pRecv);
-		pRecv = pRecv->pNextRecv;
-		if (flag) {
+		pRecv = pstTmp;
+		if (pstTmp == RCSR.pHead) {
 			V(SEMRCSR);
-			flag = FALSE;
 		}
 	}
 }
 
 static void PrintSvrMsg(void)
 {
-	recv_t * pRecv;
-	struct tm * LocalTime;
+	recv_t * pRecv, * pstTmp;
 	char buf[32];
-	int count = 0;
+	struct tm * LocalTime;
 	P(SEMRCSR);
-	pRecv = RCSR.pHead->pNextRecv;
+	pRecv = RCSR.pHead->pstNext;
 	V(SEMRCSR);
 	printf("***************start***************\n");
 	while (pRecv != RCSR.pHead) {
-		++count;
+		pstTmp = pRecv->pstNext;
 		// 临界点，ListenDevice线程会在此添加新节点
-		if (RCSR.num == count) {
+		if (pstTmp == RCSR.pHead) {
 			P(SEMRCSR);
 		}
 		LocalTime = localtime(&pRecv->time);
@@ -262,8 +273,8 @@ static void PrintSvrMsg(void)
 		LocalTime = localtime(&pRecv->launch);
 		strftime(buf, 31, "%Y-%m-%d %H:%M:%S", LocalTime);
 		printf("%s\n", buf);
-		pRecv = pRecv->pNextRecv;
-		if (RCSR.num == count) {
+		pRecv = pRecv->pstNext;
+		if (pstTmp == RCSR.pHead) {
 			V(SEMRCSR);
 		}
 	}
@@ -285,5 +296,4 @@ void * ManageCommunication(void * arg)
 	}
 	return (void *)0;
 }
-
 /***************************scale***********************************/

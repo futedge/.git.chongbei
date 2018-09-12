@@ -1,88 +1,94 @@
-#include "ManageDevice.h"
 #include "ManageDevicePrivate.h"
+#include "ManageDevice.h"
 
-static void ProcessDevMsg(void);
-static void AnalyseTP(recv_t * pRecv);
-static status_t FSM_TP(u08 data);
-static void ClearFSM_TP_Step(void);
-static void ProcessDevCmd(void);
-static void PrintDevMsg(void);
-
-void * ManageDevice(void * arg)
-{
-	while(1) {
-		pthread_mutex_lock(&DEVIMUTEX);
-		if (THDDEVISLP) {
-			pthread_cond_wait(&DEVICOND, &DEVIMUTEX);
-		}
-		ProcessDevMsg();
-		THDDEVISLP = TRUE;
-		pthread_mutex_unlock(&DEVIMUTEX);
-	}
-	return (void *)0;
-}
-
-static void ProcessDevMsg(void)
+static void PrintDevMsg(void)
 {
 	recv_t * pRecv;
+	struct tm * LocalTime;
+	char buf[32];
 	int count = 0;
-	bool flag = FALSE;
 	P(SEMRCST);
-	pRecv = RCST.pHead->pNextRecv;
+	pRecv = RCST.pHead->pstNext;
 	V(SEMRCST);
+	printf("***************start***************\n");
 	while (pRecv != RCST.pHead) {
 		++count;
 		// 临界点，ListenDevice线程会在此添加新节点
 		if (RCST.num == count) {
-			flag = TRUE;
-		}
-		if (flag) {
 			P(SEMRCST);
 		}
-		TP_Analyse(pRecv);
-		pRecv = pRecv->pNextRecv;
-		if (flag) {
+		LocalTime = localtime(&pRecv->time);
+		strftime(buf, 31, "%Y-%m-%d %H:%M:%S", LocalTime);
+		printf("Update:%s, len=%d, data:%s, addr=%s, ", buf, \
+									pRecv->len, pRecv->pBuf, \
+								inet_ntoa(pRecv->addr.sin_addr));
+		pRecv = pRecv->pstNext;
+		if (RCST.num == count) {
 			V(SEMRCST);
-			flag = FALSE;
 		}
+	}
+	printf("****************end****************\n\n\n");
+}
+
+static void CP_Analyse_BB(FSMCondition_t * pFSMStep)
+{
+	time_t NowTime;
+	station_t * pStation;
+	u08 buf[TPHTLN];
+	NowTime = time(NULL);
+	if (!(pStation = position(pFSMStep->id))) {
+		pStation = NewStation(pFSMStep->id);
+	}
+	if (!pStation) {
+		return;
+	}
+	pStation->update = NowTime;
+	MakeHeartReply(buf, NowTime - BASETIME);
+	pack(pStation, 0xBB, buf);
+}
+
+static void MakeHeartReply(u08 * pBuf, time_t NowTime)
+{
+	int i;
+	for (i = 0; i < TPHTLN - 1; i++) {
+		pBuf[i] = ((long)NowTime >> (TPHTLN - 2 - i) * 8);
+	}
+	pBuf[i] = 1;
+}
+
+static void CP_Analyse_AB(FSMCondition_t * pFSMStep)
+{
+	
+}
+
+static void ProcessDevCmd(FSMCondition_t * pFSMStep)
+{
+	switch(pFSMStep->tag) {
+	case 0xBB :
+		CP_Analyse_BB(pFSMStep);
+		break;
+	case 0xAB :
+		CP_Analyse_AB(pFSMStep);
+		break;
+	default :
 	}
 }
 
-static void TP_Analyse(recv_t * pRecv)
+static void TP_ClearFSM(FSMCondition_t * pFSMStep)
 {
-	int i;
-	// 此处必须用堆，否则存在内存泄漏
-	static FSMCondition_t FSMStep;
-	for (i = 0; i < pRecv->len; i++) {
-		switch(pRecv->pBuf[i]) {
-		case TPHEAD :
-			FSMStep.condition = eMark;
-			continue;
-			break;
-		case TPFILT :
-			FSMStep.condition = eXor;
-			continue;
-			break;
-		case TPTAIL :
-			FSMStep.condition = eEnd;
-			continue;
-			break;
-		default :
-			FSMStep.condition = eContent;
-		}
-		switch(TP_FSM(&FSMStep, pBuf[i])) {
-		case eContinue :
-			break;
-		case eErrTPMark :
-			break;
-		case eErrChksum :
-			break;
-		case eProcDev :
-			ProcessDevCmd(&FSMStep);
-			break;
-		default :
-		}
+	pFSMStep->condition = eEnd;
+	pFSMStep->step = eError;
+	pFSMStep->count = 0;
+	pFSMStep->checksum = 0;
+	pFSMStep->id = 0;
+	pFSMStep->type = 0;
+	pFSMStep->tag = 0;
+	pFSMStep->len = 0;
+	if (pFSMStep->pBuf) {
+		free(pFSMStep->pBuf);
+		pFSMStep->pBuf = NULL;
 	}
+	pFSMStep->checksum = 0;
 }
 
 static status_t TP_FSM(FSMCondition_t * pFSMStep, u08 data)
@@ -171,95 +177,80 @@ static status_t TP_FSM(FSMCondition_t * pFSMStep, u08 data)
 	return eContinue;
 }
 
-static void TP_ClearFSM(FSMCondition_t * pFSMStep)
-{
-	pFSMStep->condition = eEnd;
-	pFSMStep->step = eError;
-	pFSMStep->count = 0;
-	pFSMStep->checksum = 0;
-	pFSMStep->id = 0;
-	pFSMStep->type = 0;
-	pFSMStep->tag = 0;
-	pFSMStep->len = 0;
-	if (pFSMStep->pBuf) {
-		free(pFSMStep->pBuf);
-		pFSMStep->pBuf = NULL;
-	}
-	pFSMStep->checksum = 0;
-}
-
-static void ProcessDevCmd(FSMCondition_t * pFSMStep)
-{
-	switch(pFSMStep->tag) {
-	case 0xBB :
-		CP_Analyse_BB(pFSMStep);
-		break;
-	case 0xAB :
-		CP_Analyse_AB(pFSMStep);
-		break;
-	default :
-	}
-}
-
-static void CP_Analyse_BB(FSMCondition_t * pFSMStep)
-{
-	time_t NowTime;
-	station_t * pStation;
-	u08 buf[TPHTLN];
-	NowTime = time(NULL);
-	if (!(pStation = position(pFSMStep->id))) {
-		pStation = NewStation(pFSMStep->id);
-	}
-	if (!pStation) {
-		return;
-	}
-	pStation->update = NowTime;
-	MakeHeartReply(buf, NowTime - BASETIME);
-	pack(pStation, 0xBB, buf);
-}
-
-static void MakeHeartReply(u08 * pBuf, time_t NowTime)
+static void TP_Analyse(recv_t * pRecv)
 {
 	int i;
-	for (i = 0; i < TPHTLN - 1; i++) {
-		pBuf[i] = ((long)NowTime >> (TPHTLN - 2 - i) * 8);
+	// 此处必须用堆，否则存在内存泄漏
+	static FSMCondition_t FSMStep;
+	for (i = 0; i < pRecv->len; i++) {
+		switch(pRecv->pBuf[i]) {
+		case TPHEAD :
+			FSMStep.condition = eMark;
+			continue;
+			break;
+		case TPFILT :
+			FSMStep.condition = eXor;
+			continue;
+			break;
+		case TPTAIL :
+			FSMStep.condition = eEnd;
+			continue;
+			break;
+		default :
+			FSMStep.condition = eContent;
+		}
+		switch(TP_FSM(&FSMStep, pBuf[i])) {
+		case eContinue :
+			break;
+		case eErrTPMark :
+			break;
+		case eErrChksum :
+			break;
+		case eProcDev :
+			ProcessDevCmd(&FSMStep);
+			break;
+		default :
+		}
 	}
-	pBuf[i] = 1;
 }
 
-static void CP_Analyse_AB(FSMCondition_t * pFSMStep)
-{
-	
-}
-
-
-static void PrintDevMsg(void)
+static void ProcessDevMsg(void)
 {
 	recv_t * pRecv;
-	struct tm * LocalTime;
-	char buf[32];
 	int count = 0;
+	bool flag = FALSE;
 	P(SEMRCST);
-	pRecv = RCST.pHead->pNextRecv;
+	pRecv = RCST.pHead->pstNext;
 	V(SEMRCST);
-	printf("***************start***************\n");
 	while (pRecv != RCST.pHead) {
 		++count;
 		// 临界点，ListenDevice线程会在此添加新节点
 		if (RCST.num == count) {
+			flag = TRUE;
+		}
+		if (flag) {
 			P(SEMRCST);
 		}
-		LocalTime = localtime(&pRecv->time);
-		strftime(buf, 31, "%Y-%m-%d %H:%M:%S", LocalTime);
-		printf("Update:%s, len=%d, data:%s, addr=%s, ", buf, \
-									pRecv->len, pRecv->pBuf, \
-								inet_ntoa(pRecv->addr.sin_addr));
-		pRecv = pRecv->pNextRecv;
-		if (RCST.num == count) {
+		TP_Analyse(pRecv);
+		pRecv = pRecv->pstNext;
+		if (flag) {
 			V(SEMRCST);
+			flag = FALSE;
 		}
 	}
-	printf("****************end****************\n\n\n");
+}
+
+void * ManageDevice(void * arg)
+{
+	while(1) {
+		pthread_mutex_lock(&DEVIMUTEX);
+		if (THDDEVISLP) {
+			pthread_cond_wait(&DEVICOND, &DEVIMUTEX);
+		}
+		ProcessDevMsg();
+		THDDEVISLP = TRUE;
+		pthread_mutex_unlock(&DEVIMUTEX);
+	}
+	return (void *)0;
 }
 /***************************scale***********************************/
-
