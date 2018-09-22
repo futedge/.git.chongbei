@@ -1,6 +1,10 @@
 #include "ManageDevicePrivate.h"
 #include "ManageDevice.h"
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void PrintDevMsg(void)
 {
 	recv_t * pRecv;
@@ -29,14 +33,37 @@ static void PrintDevMsg(void)
 	}
 	printf("****************end****************\n\n\n");
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
+static station_t * NewStation(void)
+{
+	station_t * pStation;
+	if (!(pStation = (station_t *)malloc(sizeof(station_t)))) {
+		perror("Not enough memory malloc for NewStation:");
+		exit(1);
+	}
+	memset(pStation, 0, sizeof(station_t));
+	pStation->pPrev = DVHD.pHead->pPrev;
+	pStation->pNext = DVHD.pHead;
+	DVHD.pHead->pPrev->pNext = pStation;
+	DVHD.pHead->pPrev = pStation;
+	return pStation;
+}
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void CP_Analyse_BB(FSMCondition_t * pFSMStep)
 {
 	time_t NowTime;
 	station_t * pStation;
 	u08 buf[TPHTLN];
 	NowTime = time(NULL);
-	if (!(pStation = position(pFSMStep->id))) {
+	if (!(pStation = PosStation(pFSMStep->id))) {
 		pStation = NewStation(pFSMStep->id);
 	}
 	if (!pStation) {
@@ -46,7 +73,11 @@ static void CP_Analyse_BB(FSMCondition_t * pFSMStep)
 	MakeHeartReply(buf, NowTime - BASETIME);
 	pack(pStation, 0xBB, buf);
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void MakeHeartReply(u08 * pBuf, time_t NowTime)
 {
 	int i;
@@ -55,12 +86,20 @@ static void MakeHeartReply(u08 * pBuf, time_t NowTime)
 	}
 	pBuf[i] = 1;
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void CP_Analyse_AB(FSMCondition_t * pFSMStep)
 {
 	
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void ProcessDevCmd(FSMCondition_t * pFSMStep)
 {
 	switch(pFSMStep->tag) {
@@ -73,7 +112,11 @@ static void ProcessDevCmd(FSMCondition_t * pFSMStep)
 	default :
 	}
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void TP_ClearFSM(FSMCondition_t * pFSMStep)
 {
 	pFSMStep->condition = eEnd;
@@ -90,7 +133,11 @@ static void TP_ClearFSM(FSMCondition_t * pFSMStep)
 	}
 	pFSMStep->checksum = 0;
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static status_t TP_FSM(FSMCondition_t * pFSMStep, u08 data)
 {
 	switch(pFSMStep->condition) {
@@ -176,7 +223,11 @@ static status_t TP_FSM(FSMCondition_t * pFSMStep, u08 data)
 	pFSMStep->checksum ^= data;
 	return eContinue;
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void TP_Analyse(recv_t * pRecv)
 {
 	int i;
@@ -213,7 +264,11 @@ static void TP_Analyse(recv_t * pRecv)
 		}
 	}
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void ProcessDevMsg(void)
 {
 	recv_t * pRecv;
@@ -239,7 +294,11 @@ static void ProcessDevMsg(void)
 		}
 	}
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 void * ManageDevice(void * arg)
 {
 	while(1) {

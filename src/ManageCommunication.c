@@ -1,57 +1,49 @@
 #include "ManageCommunication.h"
 #include "ManageCommunicationPrivate.h"
-
-static void DeleteThis(recv_t ** ppRecv)
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
+static void DeleteThis(recv_t * pRecv)
 {
-	recv_t * pRecvTmp;
-	(*ppRecv)->pPrevRecv->pstNext = (*ppRecv)->pstNext;
-	(*ppRecv)->pstNext->pPrevRecv = (*ppRecv)->pPrevRecv;
-	pRecvTmp = (*ppRecv);
-	(*ppRecv) = (*ppRecv)->pPrevRecv;
-	free(pRecvTmp->pBuf);
-	free(pRecvTmp);
-	--(RCSR.num);
+	pRecv->pstPrev->pstNext = pRecv->pstNext;
+	pRecv->pstNext->pstPrev = pRecv->pstPrev;
+	free(pRecv->pBuf);
+	free(pRecv);
+	RCSR.num--;
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void reply(void)
 {
 	recv_t * pRecv;
-	int count = 0;
-	bool flag;
 	P(SEMRCSR);
 	pRecv = RCSR.pHead->pstNext;
 	V(SEMRCSR);
 	while (pRecv != RCSR.pHead) {
-		++count;
 		// 临界点，ListenDevice线程会在此添加新节点
-		if (RCSR.num == count) {
-			flag = TRUE;
-		}
-		if (flag) {
+		if (pRecv->pstNext == RCSR.pHead) {
 			P(SEMRCSR);
 		}
 		write(pRecv->fd, pRecv->pBuf, pRecv->len);
 		free(pRecv->pBuf);
-		DeleteThat(&pRecv);
+		DeleteThis(&pRecv);
 		pRecv = pRecv->pstNext;
-		if (flag) {
+		if (pRecv == RCSR.pHead ) {
 			flag = FALSE;
 			V(SEMRCSR);
 		}
 	}
 }
-
-static void ReplyErrFmt(recv_t * pRecv, \
-										FSMCondition_t * pstFSMStep)
-{
-	if (! pstFSMStep->bAnalyseStatus) {
-		char * pBuf = (char *)malloc(pRecv->len + 17);
-		strcpy(pBuf, "type=EE&content=");
-		strcat(pBuf, pRecv->pBuf);
-		write(pRecv->fd, pBuf, strlen(pBuf));
-	}
-}
-										
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/										
 static bool DataLenCheck(FSMCondition_t * pstFSMStep, \
 													u08 VaildLen)
 {
@@ -60,7 +52,11 @@ static bool DataLenCheck(FSMCondition_t * pstFSMStep, \
 	}
 	return TRUE;
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void ExtOrdNo(FSMCondition_t * pstFSMStep, u08 data, \
 									u08 VaildLen, char ** pTarget)
 {
@@ -73,14 +69,18 @@ static void ExtOrdNo(FSMCondition_t * pstFSMStep, u08 data, \
 			}
 			memset(* pTarget, '\0', VaildLen + 1);
 		}
-		* pTarget[pstFSMStep->count - 1] = data;
+		(* pTarget)[pstFSMStep->count - 1] = data;
 	}
 	else {
 		pstFSMStep->bAnalyseStatus = FALSE;
 		pstFSMStep->emStep = eErr;
 	}
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static bool ChaToXDig(u08 data, u08 * pTarget)
 {
 	if (data >= '0' && data <= '9') {
@@ -95,7 +95,11 @@ static bool ChaToXDig(u08 data, u08 * pTarget)
 	}
 	return FALSE;
 } 
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static bool ChaToDig(u08 data, u64 * pTarget)
 {
 	if (data >= '0' && data <= '9') {
@@ -104,76 +108,202 @@ static bool ChaToDig(u08 data, u64 * pTarget)
 	}
 	return FALSE;
 }
-
-static void TrnfmXData(FSMCondition_t * pstFSMStep, u08 data, \
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
+static bool TrnfmXData(FSMCondition_t * pstFSMStep, u08 data, \
 										u08 VaildLen, u08 * pTarget)
 {
 	if (DataLenCheck(++pstFSMStep->count, VaildLen)) {
 		if (!ChaToXDig(data, pTarget)) {
-			pstFSMStep->bAnalyseStatus = FALSE;
 			pstFSMStep->emStep = eErr;
+			return FALSE;
 		}
 	}
 	else {
-		pstFSMStep->bAnalyseStatus = FALSE;
 		pstFSMStep->emStep = eErr;
+		return FALSE;
 	}
+	return TRUE;
 }
 
-static void TrnfmData(FSMCondition_t * pstFSMStep, u08 data, \
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
+static bool TrnfmData(FSMCondition_t * pstFSMStep, u08 data, \
 										u08 VaildLen, u64 * pTarget)
 {
 	if (DataLenCheck(++pstFSMStep->count, VaildLen)) {
 		if (!ChaToDig(data, pTarget)) {
-			pstFSMStep->bAnalyseStatus = FALSE;
 			pstFSMStep->emStep = eErr;
+			return FALSE;
 		}
 	}
 	else {
-		pstFSMStep->bAnalyseStatus = FALSE;
 		pstFSMStep->emStep = eErr;
+		return FALSE;
 	}
+	return TRUE;
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void FSM(FSMCondition_t * pstFSMStep, u08 data)
 {
 	switch(pstFSMStep->emStep) {
 	case eId :
-		TrnfmData(pstFSMStep, data, IDLEN, & pstFSMStep->id);
+		if (TrnfmData(pstFSMStep, data, IDLEN, \
+											& pstFSMStep->id)) {
+			pstFSMStep->bit.ValidId = 1;
+		}
+		else {
+			pstFSMStep->bit.ValidId = 0;
+		}
 		break;
 	case eCmd :
-		TrnfmXData(pstFSMStep, data, CMDLEN, & pstFSMStep->cmd);
+		if (TrnfmXData(pstFSMStep, data, CMDLEN, \
+											& pstFSMStep->cmd)) {
+			pstFSMStep->bit.ValidCmd = 1;
+		}
+		else {
+			pstFSMStep->bit.ValidCmd = 0;
+		}
 		break;
 	case ePort :
-		TrnfmData(pstFSMStep, data, PORTLEN, & pstFSMStep->port);
+		if (TrnfmData(pstFSMStep, data, PORTLEN, \
+											& pstFSMStep->port)) {
+			pstFSMStep->bit.ValidPort = 1;
+		}
+		else {
+			pstFSMStep->bit.ValidPort = 0;
+		}
 		break;
 	case eData1 :
-		TrnfmData(pstFSMStep, data, DATALEN, & pstFSMStep->data1);
+		if (TrnfmData(pstFSMStep, data, DATALEN, \
+											& pstFSMStep->data1)) {
+			pstFSMStep->bit.ValidData1 = 1;
+		}
+		else {
+			pstFSMStep->bit.ValidData1 = 0;
+		}
 		break;
 	case eData2 :
-		TrnfmData(pstFSMStep, data, DATALEN, & pstFSMStep->data2);
+		if (TrnfmData(pstFSMStep, data, DATALEN, \
+											& pstFSMStep->data2)) {
+			pstFSMStep->bit.ValidData2 = 1;
+		}
+		else {
+			pstFSMStep->bit.ValidData2 = 0;
+		}
 		break;
 	case eOrdNo :
-		ExtOrdNo(pstFSMStep, data, ORDNOLEN, & pstFSMStep->pBuf);
+		if (ExtOrdNo(pstFSMStep, data, ORDNOLEN, \
+											& pstFSMStep->pBuf)) {
+			pstFSMStep->bit.ValidOrNo = 1;
+		}
+		else {
+			pstFSMStep->bit.ValidOrNo = 0;
+		}
 		break;
 	default :
 	}
 }
-
-static void SaveWebCmd(FSMCondition_t * pstFSMStep)
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
+void ReplyID(recv_t * pRecv, u64 id)
 {
-	if (pstFSMStep->bAnalyseStatus) {
-		SendCmd_t pstCmd = NULL;
+	char BufTmp[12], BufSend[28];
+	memset(BufTmp, 0, 12);
+	memset(BufSend, 0, 28);
+	strcpy(BufSend, "type=ID&content=");
+	sprintf(BufTmp, "%ld", id);
+	strcat(BufSend, BufTmp);
+	write(pRecv->pstSvr->fd, BufSend, strlen(BufSend));
+}
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
+void ReplyEE(recv_t * pRecv, u08 len)
+{
+	char * pBuf = (char *)malloc(len + 17);
+	memset(pBuf, 0, len + 17);
+	strcpy(pBuf, "type=EE&content=");
+	strncat(pBuf, pRecv->pBuf, len);
+	write(pRecv->pstSvr->fd, pBuf, SendLen);
+	free(pBuf);
+}
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
+static u08 * MakeCmdV1(FSMCondition_t * pstFSMStep)
+{
+	u08 Buf[BUFCMD];
+	u08 n = 0;
+	if (pstFSMStep->port < 1 && pstFSMStep->port > 10) {
+		pstFSMStep->port = 1;
+	}
+	Buf[++n] = 0xAA;
+	Buf[++n] = pstFSMStep->port;
+	Buf[++n] = 0;
+	Buf[++n] = pstFSMStep->cmd;
+	switch (pstFSMStep->cmd) {
+	case 0xA0 :
+		Buf[++n] = 5;
+		Buf[++n] = pstFSMStep->
+		break;
+	case 0xA4 :
+		break;
+	case 0xA5 :
+		break;
+	case 0xC0 :
+	case 0xC1 :
+	case 0xC2 :
+	case 0xC3 :
+	case 0xF7 :
+		break;
+	}		
+}
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
+static void SaveWebCmd(recv_t * pRecv, FSMCondition_t * pstFSMStep)
+{
+	station_t * pstStation;
+	if (pstStation = PosStation(pstFSMStep->id)) {
+		switch (pstStation->version) {
+		case 1 :
+			MakeCmdV1(pstFSMStep);
+			break;
+		case 2 :
+			break;
+		}
+		SendCmd_t * pstCmd = NULL;
 		if (!(pstCmd = (SendCmd_t *)mailloc(sizeof(SendCmd_t)))) {
 			perror("Not enough memory malloc for SendCmdTmp:");
 			exit(1);
 		}
 		memset(pstCmd, 0, sizeof(SendCmd_t));
+		
 		P(SEMOCCMD);
-		pstCmd.pstPrev = TRHD->pstPrev;
-		pstCmd.pstNext = TRHD;
-		TRHD->pstPrev->pstNext = pstCmd;
-		TRHD->pstPrev = pstCmd;
+		pstCmd->pstPrev = OCHD->pstPrev;
+		pstCmd->pstNext = OCHD;
+		OCHD->pstPrev->pstNext = pstCmd;
+		OCHD->pstPrev = pstCmd;
 		V(SEMOCCMD);
 		if (THDONCESLP) {
 			THDONCESLP = FALSE;
@@ -182,8 +312,35 @@ static void SaveWebCmd(FSMCondition_t * pstFSMStep)
 			pthread_mutex_unlock(&ONCEMUTEX);
 		}
 	}
+	else {
+		ReplyID(pRecv, pstFSMStep->id)
+	}
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
+static bool CmdValidCheck(FSMCondition_t * pstFSMStep)
+{
+	switch(pstFSMStep->cmd) {
+	case 0xA0 :
+		if (pstFSMStep->word == EType3) return TRUE;
+		break;
+	case 0xA4 :
+	case 0xA5 :
+		if (pstFSMStep->word == EType2) return TRUE;
+		break;
+	default :
+		if (pstFSMStep->word == EType1) return TRUE;
+	}
+	return FALSE;
+}
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void NextStepCheck(FSMCondition_t * pstFSMStep)
 {
 	if (pstFSMStep->emStep == ePort) {
@@ -197,21 +354,27 @@ static void NextStepCheck(FSMCondition_t * pstFSMStep)
 	}
 	if (FSMStep.step > eErr) FSMStep.step = eErr;
 }
-
-static void InitFSM(FSMCondition_t * pstFSMStep)
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
+static void ClearFSM(FSMCondition_t * pstFSMStep)
 {
 	if (pstFSMStep->pBuf) {
 		free(pstFSMStep->pBuf);
 	}
 	memset(pstFSMStep, 0, sizeof(FSMCondition_t));
-	pstFSMStep->bAnalyseStatus = TRUE;
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void analyse(recv_t * pRecv)
 {
 	int i;
 	static FSMCondition_t stFSMStep;
-	InitFSM(&stFSMStep);
 	for (i = 0; i < pRecv->len; i++) {
 		switch(pRecv->pBuf[i]) {
 		case '+' :
@@ -220,16 +383,28 @@ static void analyse(recv_t * pRecv)
 			NextStepCheck(&stFSMStep);
 			break;
 		case '/' :
-			SaveWebCmd(&stFSMStep);
-			InitFSM(&stFSMStep);
+			if (CmdValidCheck(&stFSMStep)) {
+				SaveWebCmd(pRecv, &stFSMStep);
+			}
+			else {
+				ReplyEE(pRecv, i + 1);
+			}
+			ClearFSM(&stFSMStep);
 			break;
 		default :
 			FSM(&stFSMStep, pRecv->pBuf[i]);
 		}
 	}
-	ReplyErrFmt(pRecv);
+	if (stFSMStep.id) {
+		ReplyEE(pRecv, pRecv->len);
+		ClearFSM(&stFSMStep);
+	}
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void ProcessSvrMsg(void)
 {
 	recv_t * pRecv, * pstTmp;
@@ -243,14 +418,18 @@ static void ProcessSvrMsg(void)
 			P(SEMRCSR);
 		}
 		analyse(pRecv);
-		DeleteThis(&pRecv);
+		DeleteThis(pRecv);
 		pRecv = pstTmp;
 		if (pstTmp == RCSR.pHead) {
 			V(SEMRCSR);
 		}
 	}
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void PrintSvrMsg(void)
 {
 	recv_t * pRecv, * pstTmp;
@@ -280,7 +459,11 @@ static void PrintSvrMsg(void)
 	}
 	printf("****************end****************\n\n\n");
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 void * ManageCommunication(void * arg)
 {
 	while(1) {

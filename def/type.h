@@ -19,12 +19,13 @@ typedef	unsigned char	u08;
 typedef unsigned short	u16;
 typedef unsigned int	u32;
 typedef unsigned long	u64;
-typedef unsigned char	bool;
+typedef enum {FALSE, TRUE} bool;
 
 // 待处理命令,收到相应反馈或超时后删除
 typedef struct tagCmd_t {
 	time_t time;		// 命令创建时间
 	time_t EndTime;		// 创建时间+充电时间
+	server_t * pstSvr;	// 命令对应Server节点
 	u08 port;			// 相应端口
 	u08 cmd;			// 具体命令
 	u08 len;			// 命令字节数
@@ -49,6 +50,8 @@ typedef struct {
 // 站端
 typedef struct tagStation_t {
 	u64 id;				// 站id号,即手机号
+	u08 version;		// 站版本
+	bool bInSendList;	// 是否在发送队列标志
 	u08 status;			/* 站状态,0-OK,1-未初始化,2-无法通信,
 						3-不能操作 */
 	time_t launch;		// 站第一次上线时间,创建时记录,终生不变
@@ -111,7 +114,7 @@ typedef struct tagRecv_t {
 	time_t time;
 	union {
 		struct {
-			u16 fd;
+			server_t * pstSvr;
 			time_t launch;
 		};
 		struct sockaddr_in addr;
@@ -184,6 +187,7 @@ typedef struct {
 extern const long	BASETIME;
 extern const int	BUFMAX;
 extern const int	BUFWEBMAX;
+extern const int	BUFCMD;
 extern const int	BUFSQL;
 extern const int	RETRY;
 extern const int	CMDLIFE;

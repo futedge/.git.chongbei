@@ -5,6 +5,7 @@ const long BASETIME	= 1420070400;/* 1970-1-1 0:0:0到2015-1-1 0:0:0
 									的秒数 */
 const int BUFMAX	= 64;	// 充电站接收缓存大小
 const int BUFWEBMAX	= 128;	// web端命令接收缓存大小
+const int BUFCMD	= 32;	// web下发命令缓存大小
 const int BUFSQL	= 1024;	// sql命令缓存大小
 const int RETRY		= 3;	// 命令失败或无回复重复次数
 const int CMDLIFE	= 127;	// C0 C3初始化命令生命周期

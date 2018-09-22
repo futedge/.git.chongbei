@@ -1,6 +1,10 @@
 #include "comm.h"
 #include "ManageCommunicationPrivate.h"
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 int MakeSemid(key_t key)
 {
 	int semid;
@@ -15,7 +19,11 @@ int MakeSemid(key_t key)
 	}
 	return semid;
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 void SetSemidVal(int semid, int val)
 {
 	SemidVal_t SemidVal;
@@ -26,46 +34,42 @@ void SetSemidVal(int semid, int val)
 	SemidVal.val = val;
 	semctl(semid, 0, SETVAL, SemidVal);
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 void P(int semid)
 {
 	struct sembuf SemBuf = {0, -1, SEM_UNDO};
 	semop(semid, &SemBuf, 1);
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 void V(int semid)
 {
 	struct sembuf SemBuf = {0, 1, SEM_UNDO};
 	semop(semid, &SemBuf, 1);
 }
-
-station_t * position(FSMCondition_t * pstFSMStep)
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
+station_t * PosStation(u64 id)
 {
 	station_t * pStation;
 	pStation = DVHD.pHead->pNext;
-	while (DVHD.pHead != pStation) {
-		if (pStation->id == pstFSMStep->id) {
+	while (pStation != DVHD.pHead) {
+		if (pStation->id == id) {
 			return pStation;
 		}
 	}
 	return NULL;
 }
-
-station_t * NewStation(void)
-{
-	station_t * pStation;
-	if (!(pStation = (station_t *)malloc(sizeof(station_t)))) {
-		perror("Not enough memory malloc for NewStation:");
-		exit(1);
-	}
-	memset(pStation, 0, sizeof(station_t));
-	pStation->pPrev = DVHD.pHead->pPrev;
-	pStation->pNext = DVHD.pHead;
-	DVHD.pHead->pPrev->pNext = pStation;
-	DVHD.pHead->pPrev = pStation;
-	return pStation;
-}
-
 //void MakeCmd(u08 * pBuf, u08 cmd, )
 //{
 //}

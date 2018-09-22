@@ -1,7 +1,34 @@
 #include "ListenDevice.h"
-
-static void SaveStationMsg(u08 * pBuf, int len, time_t NowTime, struct sockaddr_in * pAddr);
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
+static void SaveStationMsg(u08 * pBuf, int len, time_t NowTime, \
+										struct sockaddr_in * pAddr)
+{
+	recv_t * pRecv;
+	if (!(pRecv = (recv_t *)malloc(sizeof(recv_t)))) {
+			perror("Not enough memory malloc to save recv web:");
+			exit(1);
+	}
+	pRecv->pBuf = pBuf;
+	pRecv->len = len;
+	pRecv->time = NowTime;
+	pRecv->addr = *pAddr;
+	P(SEMRCST);
+	pRecv->pPrevRecv = RCST.pHead->pPrevRecv;
+	pRecv->pNextRecv = RCST.pHead;
+	pRecv->pPrevRecv->pNextRecv = pRecv;
+	RCST.pHead->pPrevRecv = pRecv;
+	++(RCST.num);
+	V(SEMRCST);
+}
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 void * ListenDevice(void * arg)
 {
 	int ret, SvrFd;
@@ -48,30 +75,4 @@ void * ListenDevice(void * arg)
 	}
 	return (void *)0;
 }
-
-/********************************************************************
- *用途	: 保存接收信息到RCST.pHead
- *参数	: pServer指向当前服务器节点,pBuf指向接收数据,len接收数据长度
- *返回值	: 无
-********************************************************************/
-static void SaveStationMsg(u08 * pBuf, int len, time_t NowTime, \
-										struct sockaddr_in * pAddr)
-{
-	recv_t * pRecv;
-	if (!(pRecv = (recv_t *)malloc(sizeof(recv_t)))) {
-			perror("Not enough memory malloc to save recv web:");
-			exit(1);
-	}
-	pRecv->pBuf = pBuf;
-	pRecv->len = len;
-	pRecv->time = NowTime;
-	pRecv->addr = *pAddr;
-	P(SEMRCST);
-	pRecv->pPrevRecv = RCST.pHead->pPrevRecv;
-	pRecv->pNextRecv = RCST.pHead;
-	pRecv->pPrevRecv->pNextRecv = pRecv;
-	RCST.pHead->pPrevRecv = pRecv;
-	++(RCST.num);
-	V(SEMRCST);
-}
-
+/***************************scale***********************************/

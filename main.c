@@ -4,7 +4,11 @@
 #include "ManageDevice.h"
 #include "ManageOnceCmd.h"
 #include "data.h"
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 void init(void)
 {
 	memset(&gData, 0, sizeof(data_t));
@@ -104,10 +108,15 @@ void init(void)
 		exit(1);
 	}
 }
-
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 int main(int argc, char ** argv)
 {
-	pthread_t ThdLstDev, ThdLstSvr, ThdComm, ThdDev, ThdOnCmd, ThdTrCmd;
+	pthread_t ThdLstDev, ThdLstSvr, ThdComm;
+	pthread_t	ThdDev, ThdOnCmd, ThdTrCmd;
 	pthread_attr_t ThdAttr;
 	
 	if (argc > 2) {
@@ -154,9 +163,7 @@ int main(int argc, char ** argv)
 		exit(1);
 	}
 	pthread_attr_destroy(&ThdAttr);
-	
-//	DVHD.num = 44;
-//	printf("1:%d\n", DVHD.num);
+	// 检查
 	while (1){
 		sleep(10);
 	}

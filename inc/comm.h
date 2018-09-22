@@ -4,7 +4,7 @@
 #include "type.h"
 
 // 信号量设置联合体
-typedef union tagSemidVal_t{
+typedef union {
 	int					val;
 	unsigned short   *	pArray;
 	struct	semid_ds *	pSemid;
@@ -14,5 +14,6 @@ int MakeSemid(key_t key);
 void SetSemidVal(int semid, int val);
 void P(int semid);
 void V(int semid);
+station_t * PosStation(u64 id);
 #endif
 /***************************scale***********************************/
