@@ -31,8 +31,8 @@ typedef struct tagCmd_t {
 	u08 len;			// 命令字节数
 	u08 * pBuf;			// 完整命令包
 	char * pOrderNo;	// 相应订单号
-	struct tagCmd_t * pstPrevCmd;
-	struct tagCmd_t * pstNextCmd;
+	struct tagCmd_t * pstPrev;
+	struct tagCmd_t * pstNext;
 } cmd_t;
 
 // 跟踪开启后待闭端口,如超时程序关闭
@@ -43,8 +43,8 @@ typedef struct {
 	u08 cmd;
 	char * pOrderNo;	/* 开启反馈成功后用户未使用,端口
 						自动关闭,则反馈相应订单作退款处理 */
-	struct tagCmd_t * pstPrevChk;
-	struct tagCmd_t * pstNextChk;
+	struct tagCmd_t * pstPrev;
+	struct tagCmd_t * pstNext;
 } chk_t;
 
 // 站端
@@ -88,8 +88,8 @@ typedef struct tagServer_t {
 	time_t launch;		// web连接建立时间,创建时记录,终生不变
 	time_t update;		// web端最后一次更新时间
 	struct sockaddr_in	addr;
-	struct tagServer_t * pPrev;
-	struct tagServer_t * pNext;
+	struct tagServer_t * pstPrev;
+	struct tagServer_t * pstNext;
 } server_t;
 
 // web端头

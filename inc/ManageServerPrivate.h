@@ -8,13 +8,13 @@ typedef enum {
 } ValidType_t;
 
 typedef enum {
-	eId = 0,
-	eCmd,
-	ePort,
-	eData1,
-	eData2,
-	eOrdNo,
-	eErr
+	EId = 0,
+	ECmd,
+	EPort,
+	EData1,
+	EData2,
+	EOrdNo,
+	EErr
 } steep_t;
 
 typedef struct {

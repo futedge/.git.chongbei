@@ -1,5 +1,39 @@
-#include "ManageCommunication.h"
-#include "ManageCommunicationPrivate.h"
+#include "ManageServerPrivate.h"
+#include "ManageServer.h"
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
+static void PrintSvrMsg(void)
+{
+	recv_t * pRecv, * pstTmp;
+	char buf[32];
+	struct tm * LocalTime;
+	P(SEMRCSR);
+	pRecv = RCSR.pHead->pstNext;
+	V(SEMRCSR);
+	printf("***************start***************\n");
+	while (pRecv != RCSR.pHead) {
+		pstTmp = pRecv->pstNext;
+		// 临界点，ListenDevice线程会在此添加新节点
+		if (pstTmp == RCSR.pHead) {
+			P(SEMRCSR);
+		}
+		LocalTime = localtime(&pRecv->time);
+		strftime(buf, 31, "%Y-%m-%d %H:%M:%S", LocalTime);
+		printf("Update:%s, len=%d, data:%s, fd=%d, ", buf, \
+								pRecv->len, pRecv->pBuf, pRecv->fd);
+		LocalTime = localtime(&pRecv->launch);
+		strftime(buf, 31, "%Y-%m-%d %H:%M:%S", LocalTime);
+		printf("%s\n", buf);
+		pRecv = pRecv->pstNext;
+		if (pstTmp == RCSR.pHead) {
+			V(SEMRCSR);
+		}
+	}
+	printf("****************end****************\n\n\n");
+}
 /********************************************************************
  *用途	: 
  *参数	: 
@@ -157,7 +191,7 @@ static bool TrnfmData(FSMCondition_t * pstFSMStep, u08 data, \
 static void FSM(FSMCondition_t * pstFSMStep, u08 data)
 {
 	switch(pstFSMStep->emStep) {
-	case eId :
+	case EId :
 		if (TrnfmData(pstFSMStep, data, IDLEN, \
 											& pstFSMStep->id)) {
 			pstFSMStep->bit.ValidId = 1;
@@ -166,7 +200,7 @@ static void FSM(FSMCondition_t * pstFSMStep, u08 data)
 			pstFSMStep->bit.ValidId = 0;
 		}
 		break;
-	case eCmd :
+	case ECmd :
 		if (TrnfmXData(pstFSMStep, data, CMDLEN, \
 											& pstFSMStep->cmd)) {
 			pstFSMStep->bit.ValidCmd = 1;
@@ -175,7 +209,7 @@ static void FSM(FSMCondition_t * pstFSMStep, u08 data)
 			pstFSMStep->bit.ValidCmd = 0;
 		}
 		break;
-	case ePort :
+	case EPort :
 		if (TrnfmData(pstFSMStep, data, PORTLEN, \
 											& pstFSMStep->port)) {
 			pstFSMStep->bit.ValidPort = 1;
@@ -184,7 +218,7 @@ static void FSM(FSMCondition_t * pstFSMStep, u08 data)
 			pstFSMStep->bit.ValidPort = 0;
 		}
 		break;
-	case eData1 :
+	case EData1 :
 		if (TrnfmData(pstFSMStep, data, DATALEN, \
 											& pstFSMStep->data1)) {
 			pstFSMStep->bit.ValidData1 = 1;
@@ -193,7 +227,7 @@ static void FSM(FSMCondition_t * pstFSMStep, u08 data)
 			pstFSMStep->bit.ValidData1 = 0;
 		}
 		break;
-	case eData2 :
+	case EData2 :
 		if (TrnfmData(pstFSMStep, data, DATALEN, \
 											& pstFSMStep->data2)) {
 			pstFSMStep->bit.ValidData2 = 1;
@@ -202,7 +236,7 @@ static void FSM(FSMCondition_t * pstFSMStep, u08 data)
 			pstFSMStep->bit.ValidData2 = 0;
 		}
 		break;
-	case eOrdNo :
+	case EOrdNo :
 		if (ExtOrdNo(pstFSMStep, data, ORDNOLEN, \
 											& pstFSMStep->pBuf)) {
 			pstFSMStep->bit.ValidOrNo = 1;
@@ -344,7 +378,7 @@ static bool CmdValidCheck(FSMCondition_t * pstFSMStep)
 static void NextStepCheck(FSMCondition_t * pstFSMStep)
 {
 	if (pstFSMStep->emStep == ePort) {
-		switch (pstFSMStep->eCmd) {
+		switch (pstFSMStep->ECmd) {
 		case 0xA4 :
 		case 0xA5 :
 			pstFSMStep->step += 1;
@@ -407,20 +441,20 @@ static void analyse(recv_t * pRecv)
 ********************************************************************/
 static void ProcessSvrMsg(void)
 {
-	recv_t * pRecv, * pstTmp;
+	recv_t * pstRecv, * pstTmp;
 	P(SEMRCSR);
-	pRecv = RCSR.pHead->pstNext;
+	pstRecv = RCSR.pstHead->pstNext;
 	V(SEMRCSR);
-	while (pRecv != RCSR.pHead) {
-		pstTmp = pRecv->pstNext;
+	while (pstRecv != RCSR.pstHead) {
+		pstTmp = pstRecv->pstNext;
 		// 临界点，ListenServer线程会在此添加新节点
-		if (pstTmp == RCSR.pHead) {
+		if (pstTmp == RCSR.pstHead) {
 			P(SEMRCSR);
 		}
-		analyse(pRecv);
-		DeleteThis(pRecv);
-		pRecv = pstTmp;
-		if (pstTmp == RCSR.pHead) {
+		analyse(pstRecv);
+		DeleteThis(pstRecv);
+		pstRecv = pstTmp;
+		if (pstTmp == RCSR.pstHead) {
 			V(SEMRCSR);
 		}
 	}
@@ -430,48 +464,13 @@ static void ProcessSvrMsg(void)
  *参数	: 
  *返回值: 
 ********************************************************************/
-static void PrintSvrMsg(void)
-{
-	recv_t * pRecv, * pstTmp;
-	char buf[32];
-	struct tm * LocalTime;
-	P(SEMRCSR);
-	pRecv = RCSR.pHead->pstNext;
-	V(SEMRCSR);
-	printf("***************start***************\n");
-	while (pRecv != RCSR.pHead) {
-		pstTmp = pRecv->pstNext;
-		// 临界点，ListenDevice线程会在此添加新节点
-		if (pstTmp == RCSR.pHead) {
-			P(SEMRCSR);
-		}
-		LocalTime = localtime(&pRecv->time);
-		strftime(buf, 31, "%Y-%m-%d %H:%M:%S", LocalTime);
-		printf("Update:%s, len=%d, data:%s, fd=%d, ", buf, \
-								pRecv->len, pRecv->pBuf, pRecv->fd);
-		LocalTime = localtime(&pRecv->launch);
-		strftime(buf, 31, "%Y-%m-%d %H:%M:%S", LocalTime);
-		printf("%s\n", buf);
-		pRecv = pRecv->pstNext;
-		if (pstTmp == RCSR.pHead) {
-			V(SEMRCSR);
-		}
-	}
-	printf("****************end****************\n\n\n");
-}
-/********************************************************************
- *用途	: 
- *参数	: 
- *返回值: 
-********************************************************************/
-void * ManageCommunication(void * arg)
+void * ManageServer(void * arg)
 {
 	while(1) {
 		pthread_mutex_lock(&COMMMUTEX);
 		if (THDCOMMSLP) {
 			pthread_cond_wait(&COMMCOND, &COMMMUTEX);
 		}
-		PrintSvrMsg();
 		ProcessSvrMsg();
 		PrintSvrMsg();
 		THDCOMMSLP = TRUE;

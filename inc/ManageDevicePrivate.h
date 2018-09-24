@@ -2,31 +2,24 @@
 #define _MANAGEDEVICEPRIVATE_H
 
 typedef enum {
-	eMark,
-	eXor,
-	eEnd,
-	eContent
+	EMark,
+	EXor,
+	EEnd,
+	EContent,
+	EError
 } condition_t;
 
 typedef enum {
-	eError,
-	eID,
-	eTag,
-	eLen,
-	eData,
-	eChecksum
+	EId,
+	ETag,
+	ELen,
+	EData,
+	EChecksum
 } steep_t;
-/*
-typedef enum {
-	eContinue,
-	eErrTPMark,
-	eErrChksum,
-	eProcDev
-} status_t;
-*/
+
 typedef struct {
-	condition_t condition;
-	steep_t step;
+	condition_t eCondition;
+	steep_t eStep;
 	int count;
 	u64 id;
 	u08 type;

@@ -62,8 +62,8 @@ void V(int semid)
 station_t * PosStation(u64 id)
 {
 	station_t * pStation;
-	pStation = DVHD.pHead->pNext;
-	while (pStation != DVHD.pHead) {
+	pStation = DVHD.pstHead->pstNext;
+	while (pStation != DVHD.pstHead) {
 		if (pStation->id == id) {
 			return pStation;
 		}

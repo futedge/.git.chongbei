@@ -141,15 +141,15 @@ int main(int argc, char ** argv)
 		perror("Create ThdLstSvr error:");
 		exit(1);
 	}
-	// 创建通信管理子线程
-	if (pthread_create(&ThdComm, &ThdAttr, \
-									  ManageCommunication, NULL)) {
-		perror("Create ThdComm error:");
-		exit(1);
-	}
 	// 创建设备管理子线程
 	if (pthread_create(&ThdDev, &ThdAttr, ManageDevice, NULL)) {
 		perror("Create ThdDev error:");
+		exit(1);
+	}
+	// 创建通信管理子线程
+	if (pthread_create(&ThdComm, &ThdAttr, \
+									  ManageServer, NULL)) {
+		perror("Create ThdComm error:");
 		exit(1);
 	}
 	// 创建单发命令子线程

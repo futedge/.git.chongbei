@@ -38,6 +38,19 @@ static void PrintDevMsg(void)
  *参数	: 
  *返回值: 
 ********************************************************************/
+static void DeleteThis(recv_t * pRecv)
+{
+	pRecv->pstPrev->pstNext = pRecv->pstNext;
+	pRecv->pstNext->pstPrev = pRecv->pstPrev;
+	free(pRecv->pBuf);
+	free(pRecv);
+	RCST.num--;
+}
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static station_t * NewStation(void)
 {
 	station_t * pStation;
@@ -46,10 +59,10 @@ static station_t * NewStation(void)
 		exit(1);
 	}
 	memset(pStation, 0, sizeof(station_t));
-	pStation->pPrev = DVHD.pHead->pPrev;
-	pStation->pNext = DVHD.pHead;
-	DVHD.pHead->pPrev->pNext = pStation;
-	DVHD.pHead->pPrev = pStation;
+	pStation->pstPrev = DVHD.pHead->pstPrev;
+	pStation->pstNext = DVHD.pHead;
+	DVHD.pHead->pstPrev->pstNext = pStation;
+	DVHD.pHead->pstPrev = pStation;
 	return pStation;
 }
 /********************************************************************
@@ -119,8 +132,8 @@ static void ProcessDevCmd(FSMCondition_t * pFSMStep)
 ********************************************************************/
 static void TP_ClearFSM(FSMCondition_t * pFSMStep)
 {
-	pFSMStep->condition = eEnd;
-	pFSMStep->step = eError;
+	pFSMStep->condition = EError;
+	pFSMStep->step = EId;
 	pFSMStep->count = 0;
 	pFSMStep->checksum = 0;
 	pFSMStep->id = 0;
@@ -138,28 +151,28 @@ static void TP_ClearFSM(FSMCondition_t * pFSMStep)
  *参数	: 
  *返回值: 
 ********************************************************************/
-static status_t TP_FSM(FSMCondition_t * pFSMStep, u08 data)
+static void TP_FSM(FSMCondition_t * pFSMStep, u08 data)
 {
 	switch(pFSMStep->condition) {
-	case eMark :
+	case EMark :
 		TP_ClearFSM(pFSMStep);
 		if (data == TPMARK) {
 			pFSMStep->step = eID;
 			pFSMStep->id = 1;
 			pFSMStep->checksum ^= data;
-			return eContinue;
+			return;
 		}
 		else {
-			return eErrTPMark}
+			return;
+		}
 		break;
 	case eXor :
 		data ^= TPFTNM;
 		break;
-	case eContent :
-		break;
 	case eEnd :
+		return;
 	default :
-		return eContinue;
+		return;
 	}
 	switch(pFSMStep->step) {
 	case eID :
@@ -208,11 +221,10 @@ static status_t TP_FSM(FSMCondition_t * pFSMStep, u08 data)
 		break;
 	case eChecksum :
 		if (pFSMStep->CheckSum == data) {
-			return eProcDev;
+			ProcessDevCmd(&FSMStep);
 		}
 		else {
 			TP_ClearFSM(pFSMStep);
-			return eErrChksum;
 		}
 		break;
 	case eError :
@@ -228,40 +240,29 @@ static status_t TP_FSM(FSMCondition_t * pFSMStep, u08 data)
  *参数	: 
  *返回值: 
 ********************************************************************/
-static void TP_Analyse(recv_t * pRecv)
+static void TP_Analyse(recv_t * pstRecv)
 {
 	int i;
 	// 此处必须用堆，否则存在内存泄漏
-	static FSMCondition_t FSMStep;
+	static FSMCondition_t stFSMStep;
 	for (i = 0; i < pRecv->len; i++) {
-		switch(pRecv->pBuf[i]) {
+		switch(pstRecv->pBuf[i]) {
 		case TPHEAD :
-			FSMStep.condition = eMark;
+			stFSMStep.eCondition = EMark;
 			continue;
 			break;
 		case TPFILT :
-			FSMStep.condition = eXor;
+			stFSMStep.eCondition = EXor;
 			continue;
 			break;
 		case TPTAIL :
-			FSMStep.condition = eEnd;
+			stFSMStep.eCondition = EEnd;
 			continue;
 			break;
 		default :
-			FSMStep.condition = eContent;
+			stFSMStep.eCondition = EContent;
 		}
-		switch(TP_FSM(&FSMStep, pBuf[i])) {
-		case eContinue :
-			break;
-		case eErrTPMark :
-			break;
-		case eErrChksum :
-			break;
-		case eProcDev :
-			ProcessDevCmd(&FSMStep);
-			break;
-		default :
-		}
+		TP_FSM(&stFSMStep, pstRecv->pBuf[i]);
 	}
 }
 /********************************************************************
@@ -271,26 +272,21 @@ static void TP_Analyse(recv_t * pRecv)
 ********************************************************************/
 static void ProcessDevMsg(void)
 {
-	recv_t * pRecv;
-	int count = 0;
-	bool flag = FALSE;
+	recv_t * pstRecv, * pstTmp;
 	P(SEMRCST);
-	pRecv = RCST.pHead->pstNext;
+	pstRecv = RCST.pstHead->pstNext;
 	V(SEMRCST);
-	while (pRecv != RCST.pHead) {
-		++count;
-		// 临界点，ListenDevice线程会在此添加新节点
-		if (RCST.num == count) {
-			flag = TRUE;
-		}
-		if (flag) {
+	while (pstRecv != RCST.pstHead) {
+		pstTmp = pstRecv->pstNext;
+		// 临界点，ListenServer线程会在此添加新节点
+		if (pstTmp == RCST.pstHead) {
 			P(SEMRCST);
 		}
-		TP_Analyse(pRecv);
-		pRecv = pRecv->pstNext;
-		if (flag) {
+		TP_Analyse(pstRecv);
+		DeleteThis(pstRecv);
+		pstRecv = pstTmp;
+		if (pstTmp == RCST.pstHead) {
 			V(SEMRCST);
-			flag = FALSE;
 		}
 	}
 }
