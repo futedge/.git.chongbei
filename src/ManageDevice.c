@@ -51,6 +51,31 @@ static void DeleteThis(recv_t * pRecv)
  *参数	: 
  *返回值: 
 ********************************************************************/
+static void MakeHeartReply(u08 * pBuf, time_t NowTime)
+{
+	int i;
+	for (i = 0; i < TPHTLN - 1; i++) {
+		pBuf[i] = ((long)NowTime >> (TPHTLN - 2 - i) * 8);
+	}
+	pBuf[i] = 1;
+}
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
+static void InitStation(station_t pstStation, \
+										FSMCondition_t * pstFSMStep)
+{
+	pstStation->id = pstFSMStep->id;
+	pstStation->version = 1;
+	xxxxxxxxxxxxxxxx
+}
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static station_t * NewStation(void)
 {
 	station_t * pStation;
@@ -70,43 +95,75 @@ static station_t * NewStation(void)
  *参数	: 
  *返回值: 
 ********************************************************************/
-static void CP_Analyse_BB(FSMCondition_t * pFSMStep)
+static void AnalyseBB(FSMCondition_t * pstFSMStep)
 {
 	time_t NowTime;
-	station_t * pStation;
+	station_t * pstStation;
 	u08 buf[TPHTLN];
-	NowTime = time(NULL);
-	if (!(pStation = PosStation(pFSMStep->id))) {
-		pStation = NewStation(pFSMStep->id);
+	if (!(pstStation = PosStation(pstFSMStep->id))) {
+		pstStation = NewStation(pstFSMStep->id);
+		InitStation(pstStation, pstFSMStep);
 	}
-	if (!pStation) {
+	NowTime = time(NULL);
+	pstStation->update = NowTime;
+	MakeHeartReply(buf, NowTime - BASETIME);
+	pack(pstStation, 0xBB, buf);
+	xxxxxxxxxxxxxxx
+}
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
+static void FSMChargePort(FSMConditionCP_t * pstFSMStep, u08 data)
+{
+	switch (pstFSMStep->eStepCP) {
+	case EPortCP :
+		pstFSMStep->port = data;
+		pstFSMStep->eStepCP = EUserTypeCP;
+		break;
+	case EUserTypeCP :
+		pstFSMStep->UserType = data;
+		pstFSMStep->eStepCP = ECmdCP;
+		break;
+	case ECmdCP :
+		pstFSMStep->cmd = data;
+		pstFSMStep->eStepCP = ELenCP;
+		break;
+	case ELenCP :
+		pstFSMStep->len = data;
+		pstFSMStep->eStepCP = EDataCP;
+		break;
+	case EDataCP :
+		xxxxxxxxxxxxxx
+		break;
+	case EChecksumCP :
+		break;
+	default :
 		return;
 	}
-	pStation->update = NowTime;
-	MakeHeartReply(buf, NowTime - BASETIME);
-	pack(pStation, 0xBB, buf);
+	pstFSMStep->checksum ^= data;
 }
 /********************************************************************
  *用途	: 
  *参数	: 
  *返回值: 
 ********************************************************************/
-static void MakeHeartReply(u08 * pBuf, time_t NowTime)
+static void AnalyseAB(FSMCondition_t * pstFSMStep)
 {
 	int i;
-	for (i = 0; i < TPHTLN - 1; i++) {
-		pBuf[i] = ((long)NowTime >> (TPHTLN - 2 - i) * 8);
+	FSMConditionCP_t stFSMStep;
+	for (i = 0; i < pstFSMStep->len; i++) {
+		switch(pstFSMStep->pBuf[i]) {
+		case 0xAA :
+			stFSMStep.eStepCP = EPortCP;
+			stFSMStep.checksum ^= 0xAA;
+			continue;
+			break;
+		default :
+		}
+		FSMChargePort(&stFSMStep, pstFSMStep->pBuf[i]);
 	}
-	pBuf[i] = 1;
-}
-/********************************************************************
- *用途	: 
- *参数	: 
- *返回值: 
-********************************************************************/
-static void CP_Analyse_AB(FSMCondition_t * pFSMStep)
-{
-	
 }
 /********************************************************************
  *用途	: 
@@ -116,13 +173,14 @@ static void CP_Analyse_AB(FSMCondition_t * pFSMStep)
 static void ProcessDevCmd(FSMCondition_t * pFSMStep)
 {
 	switch(pFSMStep->tag) {
-	case 0xBB :
-		CP_Analyse_BB(pFSMStep);
-		break;
 	case 0xAB :
-		CP_Analyse_AB(pFSMStep);
+		AnalyseAB(pFSMStep);
+		break;
+	case 0xBB :
+		AnalyseBB(pFSMStep);
 		break;
 	default :
+		return;
 	}
 }
 /********************************************************************
@@ -130,122 +188,115 @@ static void ProcessDevCmd(FSMCondition_t * pFSMStep)
  *参数	: 
  *返回值: 
 ********************************************************************/
-static void TP_ClearFSM(FSMCondition_t * pFSMStep)
+static void ClearFSMTrnsProt(FSMCondition_t * pstFSMStep)
 {
-	pFSMStep->condition = EError;
-	pFSMStep->step = EId;
-	pFSMStep->count = 0;
-	pFSMStep->checksum = 0;
-	pFSMStep->id = 0;
-	pFSMStep->type = 0;
-	pFSMStep->tag = 0;
-	pFSMStep->len = 0;
-	if (pFSMStep->pBuf) {
-		free(pFSMStep->pBuf);
-		pFSMStep->pBuf = NULL;
+	pstFSMStep->eCondition = EMark;
+	pstFSMStep->eStep = EStart;
+	pstFSMStep->count = 0;
+	pstFSMStep->id = 0;
+	pstFSMStep->type = 0;
+	pstFSMStep->tag = 0;
+	pstFSMStep->len = 0;
+	if (pstFSMStep->pBuf) {
+		free(pstFSMStep->pBuf);
+		pstFSMStep->pBuf = NULL;
 	}
-	pFSMStep->checksum = 0;
+	pstFSMStep->checksum = 0;
 }
 /********************************************************************
  *用途	: 
  *参数	: 
  *返回值: 
 ********************************************************************/
-static void TP_FSM(FSMCondition_t * pFSMStep, u08 data)
+static void FSMTrnsPort(FSMCondition_t * pstFSMStep, u08 data)
 {
-	switch(pFSMStep->condition) {
+	switch(pstFSMStep->eCondition) {
 	case EMark :
-		TP_ClearFSM(pFSMStep);
+		ClearFSMTrnsProt(pstFSMStep);
 		if (data == TPMARK) {
-			pFSMStep->step = eID;
-			pFSMStep->id = 1;
-			pFSMStep->checksum ^= data;
+			pstFSMStep->eStep = EId;
+			pstFSMStep->id = 1;
+			pstFSMStep->checksum ^= data;
 			return;
 		}
 		else {
 			return;
 		}
 		break;
-	case eXor :
+	case EXor :
 		data ^= TPFTNM;
 		break;
-	case eEnd :
+	case EEnd :
 		return;
 	default :
-		return;
 	}
-	switch(pFSMStep->step) {
-	case eID :
-		++pFSMStep->count;
-		if (pFSMStep->count >= TPIDLN) {
-			pFSMStep->count = 0;
-			pFSMStep->step = eTag;
+	switch(pstFSMStep->eStep) {
+	case EId :
+		++pstFSMStep->count;
+		if (pstFSMStep->count >= TPIDLN) {
+			pstFSMStep->count = 0;
+			pstFSMStep->eStep = ETag;
 		}
 		if (data >= 0x80) {
-			pFSMStep->type |= 1 << (TPIDLN - pFSMStep->count);
+			pstFSMStep->type |= 1 << (TPIDLN - pstFSMStep->count);
 			data &= 0x7F;
 		}
-		pFSMStep->id = pFSMStep->id * 100 + data;
+		pstFSMStep->id = pstFSMStep->id * 100 + data;
 		break;
-	case eTag :
-		++pFSMStep->count;
-		if (pFSMStep->count >= TPTGLN) {
-			pFSMStep->count = 0;
-			pFSMStep->step = eLen;
+	case ETag :
+		++pstFSMStep->count;
+		if (pstFSMStep->count >= TPTGLN) {
+			pstFSMStep->count = 0;
+			pstFSMStep->eStep = ELen;
 		}
-		pFSMStep->tag |= data << ((TPTGLN - pFSMStep->count) * 8);
+		pstFSMStep->tag |= data << ((TPTGLN - pstFSMStep->count) * 8);
 		break;
-	case eLen :
-		++pFSMStep->count;
-		if (pFSMStep->count >= TPLNLN) {
-			pFSMStep->count = 0;
-			pFSMStep->step = eData;
+	case ELen :
+		++pstFSMStep->count;
+		if (pstFSMStep->count >= TPLNLN) {
+			pstFSMStep->count = 0;
+			pstFSMStep->eStep = EData;
 		}
-		pFSMStep->len |= data << ((TPLNLN - pFSMStep->count) * 8);
+		pstFSMStep->len |= data << ((TPLNLN - pstFSMStep->count) * 8);
 		break;
-	case eData :
-		if (pFSMStep->pBuf == NULL) {
-			pFSMStep->len -= 2;
-			if (!(pFSMStep->pBuf = (u08 *)malloc(pFSMStep->len))) {
+	case EData :
+		if (pstFSMStep->pBuf == NULL) {
+			pstFSMStep->len -= 2;
+			if (!(pstFSMStep->pBuf = (u08 *)malloc(pstFSMStep->len))) {
 				perror("Not enough memory malloc for \
-												pFSMStep->pBuf:");
+												pstFSMStep->pBuf:");
 				exit(1);
 			}
 		}
-		pFSMStep->pBuf[pFSMStep->count] = data;
-		++pFSMStep->count;
-		if (pFSMStep->count >= pFSMStep->len) {
-			pFSMStep->count = 0;
-			pFSMStep->step = eCheckSum;
+		pstFSMStep->pBuf[pstFSMStep->count] = data;
+		++pstFSMStep->count;
+		if (pstFSMStep->count >= pstFSMStep->len) {
+			pstFSMStep->count = 0;
+			pstFSMStep->eStep = EChecksum;
 		}
 		break;
-	case eChecksum :
-		if (pFSMStep->CheckSum == data) {
-			ProcessDevCmd(&FSMStep);
+	case EChecksum :
+		if (pstFSMStep->checksum == data) {
+			ProcessDevCmd(pstFSMStep);
 		}
-		else {
-			TP_ClearFSM(pFSMStep);
-		}
+		pstFSMStep->eStep = EStart;
 		break;
-	case eError :
 	default :
-		TP_ClearFSM(pFSMStep);
-		return eContinue;
+		return;
 	}
-	pFSMStep->checksum ^= data;
-	return eContinue;
+	pstFSMStep->checksum ^= data;
 }
 /********************************************************************
  *用途	: 
  *参数	: 
  *返回值: 
 ********************************************************************/
-static void TP_Analyse(recv_t * pstRecv)
+static void AnalyseTrnsProt(recv_t * pstRecv)
 {
 	int i;
 	// 此处必须用堆，否则存在内存泄漏
 	static FSMCondition_t stFSMStep;
-	for (i = 0; i < pRecv->len; i++) {
+	for (i = 0; i < pstRecv->len; i++) {
 		switch(pstRecv->pBuf[i]) {
 		case TPHEAD :
 			stFSMStep.eCondition = EMark;
@@ -257,12 +308,13 @@ static void TP_Analyse(recv_t * pstRecv)
 			break;
 		case TPTAIL :
 			stFSMStep.eCondition = EEnd;
+			ClearFSMTrnsProt(&stFSMStep);
 			continue;
 			break;
 		default :
 			stFSMStep.eCondition = EContent;
 		}
-		TP_FSM(&stFSMStep, pstRecv->pBuf[i]);
+		FSMTrnsPort(&stFSMStep, pstRecv->pBuf[i]);
 	}
 }
 /********************************************************************
@@ -282,7 +334,7 @@ static void ProcessDevMsg(void)
 		if (pstTmp == RCST.pstHead) {
 			P(SEMRCST);
 		}
-		TP_Analyse(pstRecv);
+		AnalyseTrnsProt(pstRecv);
 		DeleteThis(pstRecv);
 		pstRecv = pstTmp;
 		if (pstTmp == RCST.pstHead) {
