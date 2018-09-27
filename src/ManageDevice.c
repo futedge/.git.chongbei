@@ -115,24 +115,104 @@ static void AnalyseBB(FSMCondition_t * pstFSMStep)
  *参数	: 
  *返回值: 
 ********************************************************************/
+static void ClearData(FSMConditionCP_t * pstFSMStep)
+{
+	pstFSMStep->OrderNo = 0;
+	pstFSMStep->SumMoney = 0;
+	pstFSMStep->TotalTime = 0;
+	pstFSMStep->EndTime = 0;
+	pstFSMStep->CurStatus = 0;
+}
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void SaveData(FSMConditionCP_t * pstFSMStep)
 {
-	pstFSMStep->ret = (pstFSMStep->pBuf)[0];
+	pstFSMStep->ret = pstFSMStep->pBuf[0];
 	if (pstFSMStep->ret) {
 		switch (pstFSMStep->cmd) {
 		case 0xB5 :
-			if ()xxxxxxxxxxxxxxxxxx
-			pstFSMStep->OrderNo = data;
+			if (pstFSMStep->len != 16) {
+				ClearData(pstFSMStep);
+				return;
+			}
+			pstFSMStep->OrderNo = pstFSMStep->pBuf[1] << 8 | \
+								  pstFSMStep->pBuf[2];
+			pstFSMStep->SumMoney = pstFSMStep->pBuf[3] << 24 | \
+								   pstFSMStep->pBuf[4] << 16 | \
+								   pstFSMStep->pBuf[5] << 8  | \
+								   pstFSMStep->pBuf[6];
+			pstFSMStep->TotalTime = pstFSMStep->pBuf[7] << 24 | \
+									pstFSMStep->pBuf[8] << 16 | \
+									pstFSMStep->pBuf[9] << 8  | \
+									pstFSMStep->pBuf[10];
+			pstFSMStep->EndTime = pstFSMStep->pBuf[11] << 24 | \
+								  pstFSMStep->pBuf[12] << 16 | \
+								  pstFSMStep->pBuf[13] << 8  | \
+								  pstFSMStep->pBuf[14];
+			pstFSMStep->CurStatus = pstFSMStep->pBuf[15];
 			break;
 		case 0xC0 :
+			if (pstFSMStep->len != 11) {
+				ClearData(pstFSMStep);
+				return;
+			}
+			pstFSMStep->NetPrice = pstFSMStep->pBuf[1] * 10;
+			pstFSMStep->NetTime = pstFSMStep->pBuf[2] << 8 | \
+								  pstFSMStep->pBuf[3];
+			pstFSMStep->NetDiscount = pstFSMStep->pBuf[4];
+			pstFSMStep->CardPrice = pstFSMStep->pBuf[5] * 10;
+			pstFSMStep->CardTime = pstFSMStep->pBuf[6] << 8 | \
+								   pstFSMStep->pBuf[7];
+			pstFSMStep->CoinPrice = pstFSMStep->pBuf[8] * 10;
+			pstFSMStep->CoinTime = pstFSMStep->pBuf[9] << 8 | \
+								   pstFSMStep->pBuf[10];
 			break;
 		case 0xC1 :
+			if (pstFSMStep->len != 4) {
+				ClearData(pstFSMStep);
+				return;
+			}
+			pstFSMStep->CoinQryTal = pstFSMStep->pBuf[1] << 16 | \
+									 pstFSMStep->pBuf[2] << 8  | \
+									 pstFSMStep->pBuf[3];
+			break;
+		case 0xC2 :
+			if (pstFSMStep->len != 4) {
+				ClearData(pstFSMStep);
+				return;
+			}
+			pstFSMStep->CardQryTal = pstFSMStep->pBuf[1] << 16 | \
+									 pstFSMStep->pBuf[2] << 8  | \
+									 pstFSMStep->pBuf[3];
+			break;
+		case 0xC3 :
+			if (pstFSMStep->len != 3) {
+				ClearData(pstFSMStep);
+				return;
+			}
+			pstFSMStep->StdCurrent = pstFSMStep->pBuf[1];
+			pstFSMStep->MaxCurrent = pstFSMStep->pBuf[2];
+			break;
+		case 0xC4 :
+			break;
+		case 0xC5 :
+			if (pstFSMStep->len != 5) {
+				ClearData(pstFSMStep);
+				return;
+			}
+			pstFSMStep->SumMoney = pstFSMStep->pBuf[0] << 16 | \
+								   pstFSMStep->pBuf[1] << 8 | \
+								   pstFSMStep->pBuf[2];
+			pstFSMStep->TotalTime = pstFSMStep->pBuf[3] << 8 | \
+									pstFSMStep->pBuf[4];
 			break;
 		default :
 			return;
 		}
 	}
-	pstFSMStep->checksum ^= data;
 }
 
 /********************************************************************
@@ -175,11 +255,20 @@ static void FSMChargePort(FSMConditionCP_t * pstFSMStep, u08 data)
 		if (pstFSMStep->count >= pstFSMStep->len) {
 			SaveData(pstFSMStep);
 			free(pstFSMStep->pBuf);
+			pstFSMStep->pBuf = NULL;
 			pstFSMStep->count = 0;
 			pstFSMStep->eStepCP = EChecksumCP;
 		}
 		break;
 	case EChecksumCP :
+		if (pstFSMStep->checksum == data) {
+			Process(pFSMStep)
+				xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+		}
+		else {
+			clear;
+			xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+		}
 		break;
 	default :
 		return;
@@ -207,6 +296,7 @@ static void AnalyseAB(FSMCondition_t * pstFSMStep)
 		}
 		FSMChargePort(&stFSMStep, pstFSMStep->pBuf[i]);
 	}
+	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 }
 /********************************************************************
  *用途	: 

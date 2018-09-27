@@ -59,17 +59,17 @@ typedef struct {
 		// 接收C0
 		struct {
 			// 网充单价
-			u08 NetPrice;
+			u16 NetPrice;
 			// 网充单价对应时间
 			u16 NetTime;
 			// 网充折扣
 			u08 NetDiscount;
 			// 卡充单价
-			u08 CardPrice;
+			u16 CardPrice;
 			// 卡充单价对应时间
 			u16 CardTime;
 			// 投币单价
-			u08 CoinPrice;
+			u16 CoinPrice;
 			// 投币单价对应时间
 			u16 CoinTime;
 		};
