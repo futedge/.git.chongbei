@@ -115,6 +115,31 @@ static void AnalyseBB(FSMCondition_t * pstFSMStep)
  *参数	: 
  *返回值: 
 ********************************************************************/
+static void SaveData(FSMConditionCP_t * pstFSMStep)
+{
+	pstFSMStep->ret = (pstFSMStep->pBuf)[0];
+	if (pstFSMStep->ret) {
+		switch (pstFSMStep->cmd) {
+		case 0xB5 :
+			if ()xxxxxxxxxxxxxxxxxx
+			pstFSMStep->OrderNo = data;
+			break;
+		case 0xC0 :
+			break;
+		case 0xC1 :
+			break;
+		default :
+			return;
+		}
+	}
+	pstFSMStep->checksum ^= data;
+}
+
+/********************************************************************
+ *用途	: 
+ *参数	: 
+ *返回值: 
+********************************************************************/
 static void FSMChargePort(FSMConditionCP_t * pstFSMStep, u08 data)
 {
 	switch (pstFSMStep->eStepCP) {
@@ -132,10 +157,27 @@ static void FSMChargePort(FSMConditionCP_t * pstFSMStep, u08 data)
 		break;
 	case ELenCP :
 		pstFSMStep->len = data;
-		pstFSMStep->eStepCP = EDataCP;
+		if (data) {
+			pstFSMStep->eStepCP = EDataCP;
+		}
+		else {
+			pstFSMStep->eStepCP = EChecksumCP;
+		}
 		break;
 	case EDataCP :
-		xxxxxxxxxxxxxx
+		++pstFSMStep->count;
+		if (pstFSMStep->len > 1 && pstFSMStep->pBuf == NULL) {
+			if (!(pstFSMStep->pBuf = (u08 *)malloc(pstFSMStep->len))) {
+				perror("Not enough memory malloc in FSMChargePort");
+				exit(1);
+			}
+		}
+		if (pstFSMStep->count >= pstFSMStep->len) {
+			SaveData(pstFSMStep);
+			free(pstFSMStep->pBuf);
+			pstFSMStep->count = 0;
+			pstFSMStep->eStepCP = EChecksumCP;
+		}
 		break;
 	case EChecksumCP :
 		break;
@@ -153,6 +195,7 @@ static void AnalyseAB(FSMCondition_t * pstFSMStep)
 {
 	int i;
 	FSMConditionCP_t stFSMStep;
+	stFSMStep.pBuf = NULL;
 	for (i = 0; i < pstFSMStep->len; i++) {
 		switch(pstFSMStep->pBuf[i]) {
 		case 0xAA :

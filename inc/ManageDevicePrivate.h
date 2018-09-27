@@ -51,6 +51,10 @@ typedef struct {
 	u08 cmd;
 	// 数据字节数
 	u08 len;
+	// 反馈结果
+	u08 ret;
+	// 数据项缓存指针
+	u08 pBuf;
 	union {
 		// 接收C0
 		struct {
