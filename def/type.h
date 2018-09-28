@@ -52,12 +52,13 @@ typedef struct tagStation_t {
 	u64 id;				// 站id号,即手机号
 	u08 version;		// 站版本
 	bool bInSendList;	// 是否在发送队列标志
-	u08 status;			/* 站状态,0-OK,1-未初始化,2-无法通信,
-						3-不能操作 */
+	u08 status;			/* 站状态,0-未初始化,1-OK,2-无法通信,
+						   3-不能设置,4-不能开启充电 */
 	time_t launch;		// 站第一次上线时间,创建时记录,终生不变
 	time_t update;		// 站最后一次更新时间
 	u32 ports;			/* 端口状态,1使用中0空闲,
-						低到高每位代表一端口,共可表示4*8=32个端口 */
+						   低到高每位代表一端口,
+						   共可表示4*8=32个端口 */
 	u08 StdCurrent[2];	// 标准电流值,[0]实际值,[1]待设值,下同
 	u08 MaxCurrent[2];	// 最大电流值
 	u08 NetPrice[2];	// 网络消费标准

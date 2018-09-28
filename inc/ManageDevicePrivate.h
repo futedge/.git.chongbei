@@ -27,11 +27,11 @@ typedef struct {
 	u16 len;
 	u08 * pBuf;
 	u08 checksum;
+	struct sockaddr_in addr;
 } FSMCondition_t;
 
 typedef enum {
 	EStartCP,
-	ETagCP,
 	EPortCP,
 	EUserTypeCP,
 	ECmdCP,
