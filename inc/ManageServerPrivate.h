@@ -2,19 +2,19 @@
 #define _MANAGECOMMUNICATIONPRIVATE_H
 
 typedef enum {
-	EType1 = 3,
-	EType2 = 27,
-	EType3 = 63
+	E_type1 = 3,
+	E_type2 = 27,
+	E_type3 = 63
 } ValidType_t;
 
 typedef enum {
-	EId = 0,
-	ECmd,
-	EPort,
-	EData1,
-	EData2,
-	EOrdNo,
-	EErr
+	E_id = 0,
+	E_cmd,
+	E_port,
+	E_data1,
+	E_data2,
+	E_OrdNo,
+	E_err
 } steep_t;
 
 typedef struct {
@@ -38,7 +38,7 @@ typedef struct {
 			u08 _reserved	: 2;
 		} bit;
 	};
-} FSMCondition_t;
+} FSM_Condition_t;
 
 #endif
 /***************************scale***********************************/

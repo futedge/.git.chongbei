@@ -16,13 +16,13 @@ static void SaveStationMsg(u08 * pBuf, int len, \
 	pRecv->len = len;
 	pRecv->time = time(NULL);
 	pRecv->addr = *pAddr;
-	P(SEMRCST);
-	pRecv->pPrevRecv = RCST.pHead->pPrevRecv;
-	pRecv->pNextRecv = RCST.pHead;
+	P(SEM_RC_ST);
+	pRecv->pPrevRecv = RC_ST.pHead->pPrevRecv;
+	pRecv->pNextRecv = RC_ST.pHead;
 	pRecv->pPrevRecv->pNextRecv = pRecv;
-	RCST.pHead->pPrevRecv = pRecv;
-	++(RCST.num);
-	V(SEMRCST);
+	RC_ST.pHead->pPrevRecv = pRecv;
+	++(RC_ST.num);
+	V(SEM_RC_ST);
 }
 /********************************************************************
  *用途	: 
@@ -39,33 +39,33 @@ void * ListenDevice(void * arg)
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = htonl(INADDR_ANY); 
 					 // == inet_addr("0.0.0.0");
-	addr.sin_port = htons(STPORT);
+	addr.sin_port = htons(ST_PORT);
 	SocketLen = sizeof(addr);
-	if ((DVHD.SvrFd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+	if ((DV_HD.SvrFd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		perror("Datagram socket error:");
 		exit(1);
 	}
-	if (bind(DVHD.SvrFd, (struct sockaddr *)&addr, \
+	if (bind(DV_HD.SvrFd, (struct sockaddr *)&addr, \
 									sizeof(struct sockaddr)) < 0) {
 		perror("Bind datagram socket error:");
 		exit(1);
 	}
 	while (1) {
-		if (!(pBuf = (u08 *)malloc(BUFMAX))) {
+		if (!(pBuf = (u08 *)malloc(BUF_MAX))) {
 			perror("Not enough memory for malloc, recv device:");
 			exit(1);
 		}
-		memset(pBuf, 0, BUFMAX);
+		memset(pBuf, 0, BUF_MAX);
 		memset(&addr, 0, sizeof(addr));
-		ret = recvfrom(DVHD.SvrFd, pBuf, BUFMAX, 0, \
+		ret = recvfrom(DV_HD.SvrFd, pBuf, BUF_MAX, 0, \
 							(struct sockaddr *)&addr, &SocketLen);
 		if (ret > 0) {
 			SaveStationMsg(pBuf, ret, &addr);
-			if (THDDEVISLP) {
-				THDDEVISLP = FALSE;
-				pthread_mutex_lock(&DEVIMUTEX);
-				pthread_cond_signal(&DEVICOND);
-				pthread_mutex_unlock(&DEVIMUTEX);
+			if (THD_DEVI_SLP) {
+				THD_DEVI_SLP = FALSE;
+				pthread_mutex_lock(&DEVI_MUTEX);
+				pthread_cond_signal(&DEVI_COND);
+				pthread_mutex_unlock(&DEVI_MUTEX);
 			}
 		}
 	}

@@ -7,29 +7,29 @@
 void SendCmd()
 {
 	SendCmd_t * pstCmd, * pstTmp;
-	P(SEMOCCMD);
-	pstCmd = OCHD->pstNext;
-	V(SEMOCCMD);
-	while (pstCmd != OCHD) {
+	P(SEM_ON_CM);
+	pstCmd = ON_CM_HD->pstNext;
+	V(SEM_ON_CM);
+	while (pstCmd != ON_CM_HD) {
 		pstTmp = pstCmd->pstNext;
-		sendto(DVHD.SvrFd, OCHD->pstStation->pCmd->pBuf, \
-						 OCHD->pstStation->pCmd->len, 0, \
-			 (struct sockaddr *)&OCHD->pstStation->addr, \
+		sendto(DV_HD.SvrFd, ON_CM_HD->pstStation->pCmd->pBuf, \
+						 ON_CM_HD->pstStation->pCmd->len, 0, \
+			 (struct sockaddr *)&ON_CM_HD->pstStation->addr, \
 								  sizeof(struct sockaddr));
-		if (pstTmp == OCHD) {
-			P(SEMOCCMD);
+		if (pstTmp == ON_CM_HD) {
+			P(SEM_ON_CM);
 		}
 		pstCmd->pstPrev->pstNext = pstCmd->pstNext;
 		pstCmd->pstNext->pstPrev = pstCmd->pstPrev;
-		P(SEMTRCMD);
-		pstCmd->pstPrev = TRHD->pstPrev;
-		pstCmd->pstNext = TRHD;
-		TRHD->pstPrev->pstNext = pstCmd;
-		TRHD->pstPrev = pstCmd;
-		V(SEMTRCMD);
+		P(SEM_TR_CM);
+		pstCmd->pstPrev = TR_CM_HD->pstPrev;
+		pstCmd->pstNext = TR_CM_HD;
+		TR_CM_HD->pstPrev->pstNext = pstCmd;
+		TR_CM_HD->pstPrev = pstCmd;
+		V(SEM_TR_CM);
 		pstCmd = pstTmp;
-		if (pstTmp == OCHD) {
-			V(SEMOCCMD);
+		if (pstTmp == ON_CM_HD) {
+			V(SEM_ON_CM);
 		}
 	}
 }
@@ -41,13 +41,13 @@ void SendCmd()
 void * ManageOnceCmd(void * arg)
 {
 	while(1) {
-		pthread_mutex_lock(&ONCEMUTEX);
-		if (THDONCESLP) {
-			pthread_cond_wait(&ONCECOND, &ONCEMUTEX);
+		pthread_mutex_lock(&ONCE_MUTEX);
+		if (THD_ONCE_SLP) {
+			pthread_cond_wait(&ONCE_COND, &ONCE_MUTEX);
 		}
 		SendCmd();
-		THDONCESLP = TRUE;
-		pthread_mutex_unlock(&ONCEMUTEX);
+		THD_ONCE_SLP = TRUE;
+		pthread_mutex_unlock(&ONCE_MUTEX);
 	}
 	return (void *)0;
 }

@@ -12,30 +12,30 @@
 void init(void)
 {
 	memset(&gData, 0, sizeof(data_t));
-	// DVHD init
-	if (!(DVHD.pstHead = (station_t *)malloc(sizeof(station_t)))) {
+	// DV_HD init
+	if (!(DV_HD.pstHead = (station_t *)malloc(sizeof(station_t)))) {
 		perror("Not enough memory malloc for RecvServer.pstHead:");
 		exit(1);
 	}
-	memset(DVHD.pstHead, 0, sizeof(station_t));
-	DVHD.pstHead->pstPrev = DVHD.pstHead;
-	DVHD.pstHead->pstNext = DVHD.pstHead;
-	// WBHD init
-	if (!(WBHD.pstHead = (server_t *)malloc(sizeof(server_t)))) {
+	memset(DV_HD.pstHead, 0, sizeof(station_t));
+	DV_HD.pstHead->pstPrev = DV_HD.pstHead;
+	DV_HD.pstHead->pstNext = DV_HD.pstHead;
+	// WB_HD init
+	if (!(WB_HD.pstHead = (server_t *)malloc(sizeof(server_t)))) {
 		perror("Not enough memory malloc for RecvServer.pstHead:");
 		exit(1);
 	}
-	memset(WBHD.pstHead, 0, sizeof(server_t));
-	WBHD.pstHead->pstPrev = WBHD.pstHead;
-	WBHD.pstHead->pstNext = WBHD.pstHead;
-	// OCHD init
-	if (!(OCHD = (SendCmd_t *)malloc(sizeof(SendCmd_t)))) {
+	memset(WB_HD.pstHead, 0, sizeof(server_t));
+	WB_HD.pstHead->pstPrev = WB_HD.pstHead;
+	WB_HD.pstHead->pstNext = WB_HD.pstHead;
+	// ON_CM_HD init
+	if (!(ON_CM_HD = (SendCmd_t *)malloc(sizeof(SendCmd_t)))) {
 		perror("Not enough memory malloc for OnSendCmd:");
 		exit(1);
 	}
-	memset(OCHD, 0, sizeof(SendCmd_t));
-	OCHD->pstPrev = OCHD;
-	OCHD->pstNext = OCHD;
+	memset(ON_CM_HD, 0, sizeof(SendCmd_t));
+	ON_CM_HD->pstPrev = ON_CM_HD;
+	ON_CM_HD->pstNext = ON_CM_HD;
 	// TCHD init
 	if (!(TCHD = (SendCmd_t *)malloc(sizeof(SendCmd_t)))) {
 		perror("Not enough memory malloc for TrSendCmd:");
@@ -44,66 +44,66 @@ void init(void)
 	memset(TCHD, 0, sizeof(SendCmd_t));
 	TCHD->pstPrev = TCHD;
 	TCHD->pstNext = TCHD;
-	// RCST init
-	if (!(RCST.pstHead = (recv_t *)malloc(sizeof(recv_t)))) {
+	// RC_ST init
+	if (!(RC_ST.pstHead = (recv_t *)malloc(sizeof(recv_t)))) {
 		perror("Not enough memory malloc for RecvStation.pstHead:");
 		exit(1);
 	}
-	memset(RCST.pstHead, 0, sizeof(recv_t));
-	RCST.pstHead->pstPrev = RCST.pstHead;
-	RCST.pstHead->pstNext = RCST.pstHead;
-	// RCSR init
-	if (!(RCSR.pstHead = (recv_t *)malloc(sizeof(recv_t)))) {
+	memset(RC_ST.pstHead, 0, sizeof(recv_t));
+	RC_ST.pstHead->pstPrev = RC_ST.pstHead;
+	RC_ST.pstHead->pstNext = RC_ST.pstHead;
+	// RC_SR init
+	if (!(RC_SR.pstHead = (recv_t *)malloc(sizeof(recv_t)))) {
 		perror("Not enough memory malloc for RecvServer.pstHead:");
 		exit(1);
 	}
-	memset(RCSR.pstHead, 0, sizeof(recv_t));
-	RCSR.pstHead->pstPrev = RCSR.pstHead;
-	RCSR.pstHead->pstNext = RCSR.pstHead;
+	memset(RC_SR.pstHead, 0, sizeof(recv_t));
+	RC_SR.pstHead->pstPrev = RC_SR.pstHead;
+	RC_SR.pstHead->pstNext = RC_SR.pstHead;
 	// set semid
-	SEMDVHD = MakeSemid(SEMBASE);
-	SetSemidVal(SEMDVHD, SEMVAL);
-	SEMWBHD = MakeSemid(SEMBASE);
-	SetSemidVal(SEMWBHD, SEMVAL);
-	SEMOCCMD = MakeSemid(SEMBASE);
-	SetSemidVal(SEMOCCMD, SEMVAL);
-	SEMTRCMD = MakeSemid(SEMBASE);
-	SetSemidVal(SEMTRCMD, SEMVAL);
-	SEMRCST = MakeSemid(SEMBASE);
-	SetSemidVal(SEMRCST, SEMVAL);
-	SEMRCSR = MakeSemid(SEMBASE);
-	SetSemidVal(SEMRCSR, SEMVAL);
-	SEMPORT = MakeSemid(SEMBASE);
-	SetSemidVal(SEMPORT, SEMVAL);
-	if (pthread_mutex_init(&COMMMUTEX, NULL)) {
+	SEM_DV_HD = MakeSemid(SEM_BASE);
+	SetSemidVal(SEM_DV_HD, SEM_VAL);
+	SEM_WB_HD = MakeSemid(SEM_BASE);
+	SetSemidVal(SEM_WB_HD, SEM_VAL);
+	SEM_ON_CM = MakeSemid(SEM_BASE);
+	SetSemidVal(SEM_ON_CM, SEM_VAL);
+	SEM_TR_CM = MakeSemid(SEM_BASE);
+	SetSemidVal(SEM_TR_CM, SEM_VAL);
+	SEM_RC_ST = MakeSemid(SEM_BASE);
+	SetSemidVal(SEM_RC_ST, SEM_VAL);
+	SEM_RC_SR = MakeSemid(SEM_BASE);
+	SetSemidVal(SEM_RC_SR, SEM_VAL);
+	SEM_PORT = MakeSemid(SEM_BASE);
+	SetSemidVal(SEM_PORT, SEM_VAL);
+	if (pthread_mutex_init(&COMM_MUTEX, NULL)) {
 		perror("mutex init error:");
 		exit(1);
 	} 
-    if (pthread_cond_init(&COMMCOND, NULL)) {
+    if (pthread_cond_init(&COMM_COND, NULL)) {
 		perror("cond init error:");
 		exit(1);
 	}
-	if (pthread_mutex_init(&DEVIMUTEX, NULL)) {
+	if (pthread_mutex_init(&DEVI_MUTEX, NULL)) {
 		perror("mutex init error:");
 		exit(1);
 	} 
-    if (pthread_cond_init(&DEVICOND, NULL)) {
+    if (pthread_cond_init(&DEVI_COND, NULL)) {
 		perror("cond init error:");
 		exit(1);
 	}
-	if (pthread_mutex_init(&ONCEMUTEX, NULL)) {
+	if (pthread_mutex_init(&ONCE_MUTEX, NULL)) {
 		perror("mutex init error:");
 		exit(1);
 	} 
-    if (pthread_cond_init(&ONCECOND, NULL)) {
+    if (pthread_cond_init(&ONCE_COND, NULL)) {
 		perror("cond init error:");
 		exit(1);
 	}
-	if (pthread_mutex_init(&TRACEMUTEX, NULL)) {
+	if (pthread_mutex_init(&TRAC_MUTEX, NULL)) {
 		perror("mutex init error:");
 		exit(1);
 	} 
-    if (pthread_cond_init(&TRACECOND, NULL)) {
+    if (pthread_cond_init(&TRAC_COND, NULL)) {
 		perror("cond init error:");
 		exit(1);
 	}

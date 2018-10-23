@@ -2,19 +2,19 @@
 #define _MANAGEDEVICEPRIVATE_H
 
 typedef enum {
-	EMark,
-	EXor,
-	EEnd,
-	EContent
+	E_mark,
+	E_xor,
+	E_end,
+	E_content
 } condition_t;
 
 typedef enum {
-	EStart,
-	EId,
-	ETag,
-	ELen,
-	EData,
-	EChecksum
+	E_start,
+	E_id,
+	E_tag,
+	E_len,
+	E_data,
+	E_checksum
 } step_t;
 
 typedef struct {
@@ -27,17 +27,17 @@ typedef struct {
 	u16 len;
 	u08 * pBuf;
 	u08 checksum;
-	struct sockaddr_in addr;
-} FSMCondition_t;
+	struct sockaddr_in stAddr;
+} FSM_Condition_t;
 
 typedef enum {
-	EStartCP,
-	EPortCP,
-	EUserTypeCP,
-	ECmdCP,
-	ELenCP,
-	EDataCP,
-	EChecksumCP
+	E_StartCP,
+	E_PortCP,
+	E_UserTypeCP,
+	E_CmdCP,
+	E_LenCP,
+	E_DataCP,
+	E_ChecksumCP
 } StepCP_t;
 
 typedef struct {
@@ -99,7 +99,7 @@ typedef struct {
 		};
 	};
 	u08 checksum;
-} FSMConditionCP_t;
+} FSM_ConditionCP_t;
 
 #endif
 /***************************scale***********************************/

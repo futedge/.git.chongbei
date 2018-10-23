@@ -61,16 +61,16 @@ typedef struct tagStation_t {
 						   共可表示4*8=32个端口 */
 	u08 StdCurrent[2];	// 标准电流值,[0]实际值,[1]待设值,下同
 	u08 MaxCurrent[2];	// 最大电流值
-	u08 NetPrice[2];	// 网络消费标准
-	u16 NetTime[2];		// 网络消费标准对应充电时间
+	u08 NetPrice[2];	// 网络消费标准 单位:分
+	u16 NetTime[2];		// 网络消费标准对应充电时间 单位:分钟
 	u08 NetDiscount[2];	// 网络消费折扣
-	u08 CardPrice[2];	// 刷卡消费标准
-	u16 CardTime[2];	// 刷卡消费标准对应充电时间
-	u08 CoinPrice[2];	// 投币消费标准
-	u16 CoinTime[2];	// 投币消费标准对应充电时间
+	u08 CardPrice[2];	// 刷卡消费标准 单位:分
+	u16 CardTime[2];	// 刷卡消费标准对应充电时间 单位:分钟
+	u08 CoinPrice[2];	// 投币消费标准 单位:分
+	u16 CoinTime[2];	// 投币消费标准对应充电时间 单位:分钟
 	cmd_t * pCmd;		// 待处理命令
 	chk_t * pChk;		// 待检查状态端口
-	struct sockaddr_in	addr;
+	struct sockaddr_in	stAddr;
 	struct tagStation_t * pstPrev;
 	struct tagStation_t * pstNext;
 } station_t;
@@ -88,7 +88,7 @@ typedef struct tagServer_t {
 	int fd;				// web端连接文件描述符
 	time_t launch;		// web连接建立时间,创建时记录,终生不变
 	time_t update;		// web端最后一次更新时间
-	struct sockaddr_in	addr;
+	struct sockaddr_in	stAddr;
 	struct tagServer_t * pstPrev;
 	struct tagServer_t * pstNext;
 } server_t;
@@ -118,7 +118,7 @@ typedef struct tagRecv_t {
 			server_t * pstSvr;
 			time_t launch;
 		};
-		struct sockaddr_in addr;
+		struct sockaddr_in stAddr;
 	};
 	struct tagRecv_t * pstPrev;
 	struct tagRecv_t * pstNext;
@@ -158,71 +158,66 @@ typedef struct {
 	pthread_cond_t  TrCmdCond;	// TraceCmdList线程容器
 } data_t;
 
-#define DVHD		(gData.stDeviceHead)
-#define WBHD		(gData.stWebSvrHead)
-#define OCHD		(gData.stOnCmdHead)
-#define TRHD		(gData.stTrCmdHead)
-#define RCST		(gData.stRecvStation)
-#define RCSR		(gData.stRecvServer)
-#define SEMDVHD		(gData.SemDvHd)
-#define SEMWBHD		(gData.SemWbHd)
-#define SEMOCCMD	(gData.SemOnCmd)
-#define SEMTRCMD	(gData.SemTrCmd)
-#define SEMRCST		(gData.SemRcSt)
-#define SEMRCSR		(gData.SemRcSr)
-#define SEMPORT		(gData.SemPort)
-#define THDCOMMSLP	(gData.ThdManComm)
-#define THDDEVISLP	(gData.ThdManDevi)
-#define THDONCESLP	(gData.ThdManOnceCmd)
-#define THDTRACSLP	(gData.ThdManTraceCmd)
-#define COMMMUTEX	(gData.CommMutex)
-#define COMMCOND	(gData.CommCond)
-#define DEVIMUTEX	(gData.DeviMutex)
-#define DEVICOND	(gData.DeviCond)
-#define ONCEMUTEX	(gData.OnCmdMutex)
-#define ONCECOND	(gData.OnCmdCond)
-#define TRACEMUTEX	(gData.TrCmdMutex)
-#define TRACECOND	(gData.TrCmdCond)
+#define DV_HD			(gData.stDeviceHead)
+#define WB_HD			(gData.stWebSvrHead)
+#define ON_CM_HD		(gData.stOnCmdHead)
+#define TR_CM_HD		(gData.stTrCmdHead)
+#define RC_ST			(gData.stRecvStation)
+#define RC_SR			(gData.stRecvServer)
+#define SEM_DV_HD		(gData.SemDvHd)
+#define SEM_WB_HD		(gData.SemWbHd)
+#define SEM_ON_CM		(gData.SemOnCmd)
+#define SEM_TR_CM		(gData.SemTrCmd)
+#define SEM_RC_ST		(gData.SemRcSt)
+#define SEM_RC_SR		(gData.SemRcSr)
+#define SEM_PORT		(gData.SemPort)
+#define THD_COMM_SLP	(gData.ThdManComm)
+#define THD_DEVI_SLP	(gData.ThdManDevi)
+#define THD_ONCE_SLP	(gData.ThdManOnceCmd)
+#define THD_TRAC_SLP	(gData.ThdManTraceCmd)
+#define COMM_MUTEX		(gData.CommMutex)
+#define COMM_COND		(gData.CommCond)
+#define DEVI_MUTEX		(gData.DeviMutex)
+#define DEVI_COND		(gData.DeviCond)
+#define ONCE_MUTEX		(gData.OnCmdMutex)
+#define ONCE_COND		(gData.OnCmdCond)
+#define TRAC_MUTEX		(gData.TrCmdMutex)
+#define TRAC_COND		(gData.TrCmdCond)
 
 // const常量
-extern const long	BASETIME;
-extern const int	BUFMAX;
-extern const int	BUFWEBMAX;
-extern const int	BUFCMD;
-extern const int	BUFSQL;
+extern const long	BASE_TIME;
+extern const int	BUF_MAX;
+extern const int	BUF_WEB_MAX;
+extern const int	BUF_CMD;
+extern const int	BUF_SQL;
 extern const int	RETRY;
-extern const int	CMDLIFE;
+extern const int	CMD_LIFE;
 extern const int	SPACE;
-extern const int	COINVAILD;
-extern const int	OFFTIME;
-extern const int	SRPORT;
-extern const int	STPORT;
-extern const int	SELOUT;
-extern const int	CONOUT;
-extern const int	CMDOUT;
-extern const int	MSGUP;
-extern const int	MSGDW;
-extern const int	MSGMODE;
-extern const int 	IDLEN;
-extern const int	CMDLEN;
-extern const int	PORTLEN;
-extern const int	DATALEN;
-extern const int	ORDNOLEN;
-extern const int	SEMBASE;
-extern const int	SEMVAL;
-extern const int	SOKVAL;
-extern const bool	TRUE;
-extern const bool	FALSE;
+extern const int	COIN_VAILD;
+extern const int	OFF_TIME;
+extern const int	SR_PORT;
+extern const int	ST_PORT;
+extern const int	SEL_OUT;
+extern const int	CON_OUT;
+extern const int	CMD_OUT;
+extern const int 	ID_LEN;
+extern const int	CMD_LEN;
+extern const int	PORT_LEN;
+extern const int	DATA_LEN;
+extern const int	ORD_NO_LEN;
+extern const int	SEM_BASE;
+extern const int	SEM_VAL;
+extern const int	SOK_VAL;
 
-extern const u08 TPHEAD;
-extern const u08 TPMARK;
-extern const u08 TPFILT;
-extern const u08 TPTAIL;
-extern const u08 TPFTNM;
-extern const u08 TPIDLN;
-extern const u08 TPTGLN;
-extern const u08 TPLNLN;
-extern const u08 TPHTLN;
+extern const u08 TP_HEAD;
+extern const u08 TP_MARK;
+extern const u08 TP_FILT;
+extern const u08 TP_TAIL;
+extern const u08 TP_FT_NM;
+extern const u08 TP_ID_LN;
+extern const u08 TP_TG_LN;
+extern const u08 TP_LN_LN;
+extern const u08 TP_HT_LN;
 
 extern data_t gData;
 

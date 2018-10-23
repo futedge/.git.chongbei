@@ -10,15 +10,15 @@ static void PrintSvrMsg(void)
 	recv_t * pRecv, * pstTmp;
 	char buf[32];
 	struct tm * LocalTime;
-	P(SEMRCSR);
-	pRecv = RCSR.pHead->pstNext;
-	V(SEMRCSR);
+	P(SEM_RC_SR);
+	pRecv = RC_SR.pHead->pstNext;
+	V(SEM_RC_SR);
 	printf("***************start***************\n");
-	while (pRecv != RCSR.pHead) {
+	while (pRecv != RC_SR.pHead) {
 		pstTmp = pRecv->pstNext;
 		// 临界点，ListenDevice线程会在此添加新节点
-		if (pstTmp == RCSR.pHead) {
-			P(SEMRCSR);
+		if (pstTmp == RC_SR.pHead) {
+			P(SEM_RC_SR);
 		}
 		LocalTime = localtime(&pRecv->time);
 		strftime(buf, 31, "%Y-%m-%d %H:%M:%S", LocalTime);
@@ -28,8 +28,8 @@ static void PrintSvrMsg(void)
 		strftime(buf, 31, "%Y-%m-%d %H:%M:%S", LocalTime);
 		printf("%s\n", buf);
 		pRecv = pRecv->pstNext;
-		if (pstTmp == RCSR.pHead) {
-			V(SEMRCSR);
+		if (pstTmp == RC_SR.pHead) {
+			V(SEM_RC_SR);
 		}
 	}
 	printf("****************end****************\n\n\n");
@@ -45,7 +45,7 @@ static void DeleteThis(recv_t * pRecv)
 	pRecv->pstNext->pstPrev = pRecv->pstPrev;
 	free(pRecv->pBuf);
 	free(pRecv);
-	RCSR.num--;
+	RC_SR.num--;
 }
 /********************************************************************
  *用途	: 
@@ -55,21 +55,21 @@ static void DeleteThis(recv_t * pRecv)
 static void reply(void)
 {
 	recv_t * pRecv;
-	P(SEMRCSR);
-	pRecv = RCSR.pHead->pstNext;
-	V(SEMRCSR);
-	while (pRecv != RCSR.pHead) {
+	P(SEM_RC_SR);
+	pRecv = RC_SR.pHead->pstNext;
+	V(SEM_RC_SR);
+	while (pRecv != RC_SR.pHead) {
 		// 临界点，ListenDevice线程会在此添加新节点
-		if (pRecv->pstNext == RCSR.pHead) {
-			P(SEMRCSR);
+		if (pRecv->pstNext == RC_SR.pHead) {
+			P(SEM_RC_SR);
 		}
 		write(pRecv->fd, pRecv->pBuf, pRecv->len);
 		free(pRecv->pBuf);
 		DeleteThis(&pRecv);
 		pRecv = pRecv->pstNext;
-		if (pRecv == RCSR.pHead ) {
+		if (pRecv == RC_SR.pHead ) {
 			flag = FALSE;
-			V(SEMRCSR);
+			V(SEM_RC_SR);
 		}
 	}
 }
@@ -78,10 +78,10 @@ static void reply(void)
  *参数	: 
  *返回值: 
 ********************************************************************/										
-static bool DataLenCheck(FSMCondition_t * pstFSMStep, \
+static bool DataLenCheck(FSM_Condition_t * pstFSM_Step, \
 													u08 VaildLen)
 {
-	if (pstFSMStep->count > VaildLen) {
+	if (pstFSM_Step->count > VaildLen) {
 		return FALSE;
 	}
 	return TRUE;
@@ -91,23 +91,23 @@ static bool DataLenCheck(FSMCondition_t * pstFSMStep, \
  *参数	: 
  *返回值: 
 ********************************************************************/
-static void ExtOrdNo(FSMCondition_t * pstFSMStep, u08 data, \
+static void ExtOrdNo(FSM_Condition_t * pstFSM_Step, u08 data, \
 									u08 VaildLen, char ** pTarget)
 {
-	if (DataLenCheck(++pstFSMStep->count, VaildLen)) {
+	if (DataLenCheck(++pstFSM_Step->count, VaildLen)) {
 		if (! * pTarget) {
 			if (! (* pTarget = (char *)malloc(VaildLen + 1))) {
 				perror("Not enough memory malloc for \
-											pstFSMStep->pBuf:");
+											pstFSM_Step->pBuf:");
 				exit(1);
 			}
 			memset(* pTarget, '\0', VaildLen + 1);
 		}
-		(* pTarget)[pstFSMStep->count - 1] = data;
+		(* pTarget)[pstFSM_Step->count - 1] = data;
 	}
 	else {
-		pstFSMStep->bAnalyseStatus = FALSE;
-		pstFSMStep->emStep = eErr;
+		pstFSM_Step->bAnalyseStatus = FALSE;
+		pstFSM_Step->emStep = eErr;
 	}
 }
 /********************************************************************
@@ -147,17 +147,17 @@ static bool ChaToDig(u08 data, u64 * pTarget)
  *参数	: 
  *返回值: 
 ********************************************************************/
-static bool TrnfmXData(FSMCondition_t * pstFSMStep, u08 data, \
+static bool TrnfmXData(FSM_Condition_t * pstFSM_Step, u08 data, \
 										u08 VaildLen, u08 * pTarget)
 {
-	if (DataLenCheck(++pstFSMStep->count, VaildLen)) {
+	if (DataLenCheck(++pstFSM_Step->count, VaildLen)) {
 		if (!ChaToXDig(data, pTarget)) {
-			pstFSMStep->emStep = eErr;
+			pstFSM_Step->emStep = eErr;
 			return FALSE;
 		}
 	}
 	else {
-		pstFSMStep->emStep = eErr;
+		pstFSM_Step->emStep = eErr;
 		return FALSE;
 	}
 	return TRUE;
@@ -168,17 +168,17 @@ static bool TrnfmXData(FSMCondition_t * pstFSMStep, u08 data, \
  *参数	: 
  *返回值: 
 ********************************************************************/
-static bool TrnfmData(FSMCondition_t * pstFSMStep, u08 data, \
+static bool TrnfmData(FSM_Condition_t * pstFSM_Step, u08 data, \
 										u08 VaildLen, u64 * pTarget)
 {
-	if (DataLenCheck(++pstFSMStep->count, VaildLen)) {
+	if (DataLenCheck(++pstFSM_Step->count, VaildLen)) {
 		if (!ChaToDig(data, pTarget)) {
-			pstFSMStep->emStep = eErr;
+			pstFSM_Step->emStep = eErr;
 			return FALSE;
 		}
 	}
 	else {
-		pstFSMStep->emStep = eErr;
+		pstFSM_Step->emStep = eErr;
 		return FALSE;
 	}
 	return TRUE;
@@ -188,61 +188,61 @@ static bool TrnfmData(FSMCondition_t * pstFSMStep, u08 data, \
  *参数	: 
  *返回值: 
 ********************************************************************/
-static void FSM(FSMCondition_t * pstFSMStep, u08 data)
+static void FSM(FSM_Condition_t * pstFSM_Step, u08 data)
 {
-	switch(pstFSMStep->emStep) {
-	case EId :
-		if (TrnfmData(pstFSMStep, data, IDLEN, \
-											& pstFSMStep->id)) {
-			pstFSMStep->bit.ValidId = 1;
+	switch(pstFSM_Step->emStep) {
+	case E_id :
+		if (TrnfmData(pstFSM_Step, data, ID_LEN, \
+											& pstFSM_Step->id)) {
+			pstFSM_Step->bit.ValidId = 1;
 		}
 		else {
-			pstFSMStep->bit.ValidId = 0;
+			pstFSM_Step->bit.ValidId = 0;
 		}
 		break;
-	case ECmd :
-		if (TrnfmXData(pstFSMStep, data, CMDLEN, \
-											& pstFSMStep->cmd)) {
-			pstFSMStep->bit.ValidCmd = 1;
+	case E_cmd :
+		if (TrnfmXData(pstFSM_Step, data, CMD_LEN, \
+											& pstFSM_Step->cmd)) {
+			pstFSM_Step->bit.ValidCmd = 1;
 		}
 		else {
-			pstFSMStep->bit.ValidCmd = 0;
+			pstFSM_Step->bit.ValidCmd = 0;
 		}
 		break;
-	case EPort :
-		if (TrnfmData(pstFSMStep, data, PORTLEN, \
-											& pstFSMStep->port)) {
-			pstFSMStep->bit.ValidPort = 1;
+	case E_port :
+		if (TrnfmData(pstFSM_Step, data, PORT_LEN, \
+											& pstFSM_Step->port)) {
+			pstFSM_Step->bit.ValidPort = 1;
 		}
 		else {
-			pstFSMStep->bit.ValidPort = 0;
+			pstFSM_Step->bit.ValidPort = 0;
 		}
 		break;
-	case EData1 :
-		if (TrnfmData(pstFSMStep, data, DATALEN, \
-											& pstFSMStep->data1)) {
-			pstFSMStep->bit.ValidData1 = 1;
+	case E_data1 :
+		if (TrnfmData(pstFSM_Step, data, DATA_LEN, \
+											& pstFSM_Step->data1)) {
+			pstFSM_Step->bit.ValidData1 = 1;
 		}
 		else {
-			pstFSMStep->bit.ValidData1 = 0;
+			pstFSM_Step->bit.ValidData1 = 0;
 		}
 		break;
-	case EData2 :
-		if (TrnfmData(pstFSMStep, data, DATALEN, \
-											& pstFSMStep->data2)) {
-			pstFSMStep->bit.ValidData2 = 1;
+	case E_data2 :
+		if (TrnfmData(pstFSM_Step, data, DATA_LEN, \
+											& pstFSM_Step->data2)) {
+			pstFSM_Step->bit.ValidData2 = 1;
 		}
 		else {
-			pstFSMStep->bit.ValidData2 = 0;
+			pstFSM_Step->bit.ValidData2 = 0;
 		}
 		break;
-	case EOrdNo :
-		if (ExtOrdNo(pstFSMStep, data, ORDNOLEN, \
-											& pstFSMStep->pBuf)) {
-			pstFSMStep->bit.ValidOrNo = 1;
+	case E_OrdNo :
+		if (ExtOrdNo(pstFSM_Step, data, ORD_NO_LEN, \
+											& pstFSM_Step->pBuf)) {
+			pstFSM_Step->bit.ValidOrNo = 1;
 		}
 		else {
-			pstFSMStep->bit.ValidOrNo = 0;
+			pstFSM_Step->bit.ValidOrNo = 0;
 		}
 		break;
 	default :
@@ -282,21 +282,21 @@ void ReplyEE(recv_t * pRecv, u08 len)
  *参数	: 
  *返回值: 
 ********************************************************************/
-static u08 * MakeCmdV1(FSMCondition_t * pstFSMStep)
+static u08 * MakeCmdV1(FSM_Condition_t * pstFSM_Step)
 {
-	u08 Buf[BUFCMD];
+	u08 Buf[BUF_CMD];
 	u08 n = 0;
-	if (pstFSMStep->port < 1 && pstFSMStep->port > 10) {
-		pstFSMStep->port = 1;
+	if (pstFSM_Step->port < 1 && pstFSM_Step->port > 10) {
+		pstFSM_Step->port = 1;
 	}
 	Buf[++n] = 0xAA;
-	Buf[++n] = pstFSMStep->port;
+	Buf[++n] = pstFSM_Step->port;
 	Buf[++n] = 0;
-	Buf[++n] = pstFSMStep->cmd;
-	switch (pstFSMStep->cmd) {
+	Buf[++n] = pstFSM_Step->cmd;
+	switch (pstFSM_Step->cmd) {
 	case 0xA0 :
 		Buf[++n] = 5;
-		Buf[++n] = pstFSMStep->
+		Buf[++n] = pstFSM_Step->
 		break;
 	case 0xA4 :
 		break;
@@ -315,13 +315,13 @@ static u08 * MakeCmdV1(FSMCondition_t * pstFSMStep)
  *参数	: 
  *返回值: 
 ********************************************************************/
-static void SaveWebCmd(recv_t * pRecv, FSMCondition_t * pstFSMStep)
+static void SaveWebCmd(recv_t * pRecv, FSM_Condition_t * pstFSM_Step)
 {
 	station_t * pstStation;
-	if (pstStation = PosStation(pstFSMStep->id)) {
+	if (pstStation = PosStation(pstFSM_Step->id)) {
 		switch (pstStation->version) {
 		case 1 :
-			MakeCmdV1(pstFSMStep);
+			MakeCmdV1(pstFSM_Step);
 			break;
 		case 2 :
 			break;
@@ -333,21 +333,21 @@ static void SaveWebCmd(recv_t * pRecv, FSMCondition_t * pstFSMStep)
 		}
 		memset(pstCmd, 0, sizeof(SendCmd_t));
 		
-		P(SEMOCCMD);
-		pstCmd->pstPrev = OCHD->pstPrev;
-		pstCmd->pstNext = OCHD;
-		OCHD->pstPrev->pstNext = pstCmd;
-		OCHD->pstPrev = pstCmd;
-		V(SEMOCCMD);
-		if (THDONCESLP) {
-			THDONCESLP = FALSE;
-			pthread_mutex_lock(&ONCEMUTEX);
-			pthread_cond_signal(&ONCECOND);
-			pthread_mutex_unlock(&ONCEMUTEX);
+		P(SEM_ON_CM);
+		pstCmd->pstPrev = ON_CM_HD->pstPrev;
+		pstCmd->pstNext = ON_CM_HD;
+		ON_CM_HD->pstPrev->pstNext = pstCmd;
+		ON_CM_HD->pstPrev = pstCmd;
+		V(SEM_ON_CM);
+		if (THD_ONCE_SLP) {
+			THD_ONCE_SLP = FALSE;
+			pthread_mutex_lock(&ONCE_MUTEX);
+			pthread_cond_signal(&ONCE_COND);
+			pthread_mutex_unlock(&ONCE_MUTEX);
 		}
 	}
 	else {
-		ReplyID(pRecv, pstFSMStep->id)
+		ReplyID(pRecv, pstFSM_Step->id)
 	}
 }
 /********************************************************************
@@ -355,18 +355,18 @@ static void SaveWebCmd(recv_t * pRecv, FSMCondition_t * pstFSMStep)
  *参数	: 
  *返回值: 
 ********************************************************************/
-static bool CmdValidCheck(FSMCondition_t * pstFSMStep)
+static bool CmdValidCheck(FSM_Condition_t * pstFSM_Step)
 {
-	switch(pstFSMStep->cmd) {
+	switch(pstFSM_Step->cmd) {
 	case 0xA0 :
-		if (pstFSMStep->word == EType3) return TRUE;
+		if (pstFSM_Step->word == E_type3) return TRUE;
 		break;
 	case 0xA4 :
 	case 0xA5 :
-		if (pstFSMStep->word == EType2) return TRUE;
+		if (pstFSM_Step->word == E_type2) return TRUE;
 		break;
 	default :
-		if (pstFSMStep->word == EType1) return TRUE;
+		if (pstFSM_Step->word == E_type1) return TRUE;
 	}
 	return FALSE;
 }
@@ -375,13 +375,13 @@ static bool CmdValidCheck(FSMCondition_t * pstFSMStep)
  *参数	: 
  *返回值: 
 ********************************************************************/
-static void NextStepCheck(FSMCondition_t * pstFSMStep)
+static void NextStepCheck(FSM_Condition_t * pstFSM_Step)
 {
-	if (pstFSMStep->emStep == ePort) {
-		switch (pstFSMStep->ECmd) {
+	if (pstFSM_Step->emStep == ePort) {
+		switch (pstFSM_Step->E_cmd) {
 		case 0xA4 :
 		case 0xA5 :
-			pstFSMStep->step += 1;
+			pstFSM_Step->step += 1;
 			break;
 		default :
 		}
@@ -393,12 +393,12 @@ static void NextStepCheck(FSMCondition_t * pstFSMStep)
  *参数	: 
  *返回值: 
 ********************************************************************/
-static void ClearFSM(FSMCondition_t * pstFSMStep)
+static void ClearFSM(FSM_Condition_t * pstFSM_Step)
 {
-	if (pstFSMStep->pBuf) {
-		free(pstFSMStep->pBuf);
+	if (pstFSM_Step->pBuf) {
+		free(pstFSM_Step->pBuf);
 	}
-	memset(pstFSMStep, 0, sizeof(FSMCondition_t));
+	memset(pstFSM_Step, 0, sizeof(FSM_Condition_t));
 }
 /********************************************************************
  *用途	: 
@@ -408,7 +408,7 @@ static void ClearFSM(FSMCondition_t * pstFSMStep)
 static void analyse(recv_t * pRecv)
 {
 	int i;
-	static FSMCondition_t stFSMStep;
+	static FSM_Condition_t stFSMStep;
 	for (i = 0; i < pRecv->len; i++) {
 		switch(pRecv->pBuf[i]) {
 		case '+' :
@@ -442,20 +442,20 @@ static void analyse(recv_t * pRecv)
 static void ProcessSvrMsg(void)
 {
 	recv_t * pstRecv, * pstTmp;
-	P(SEMRCSR);
-	pstRecv = RCSR.pstHead->pstNext;
-	V(SEMRCSR);
-	while (pstRecv != RCSR.pstHead) {
+	P(SEM_RC_SR);
+	pstRecv = RC_SR.pstHead->pstNext;
+	V(SEM_RC_SR);
+	while (pstRecv != RC_SR.pstHead) {
 		pstTmp = pstRecv->pstNext;
 		// 临界点，ListenServer线程会在此添加新节点
-		if (pstTmp == RCSR.pstHead) {
-			P(SEMRCSR);
+		if (pstTmp == RC_SR.pstHead) {
+			P(SEM_RC_SR);
 		}
 		analyse(pstRecv);
 		DeleteThis(pstRecv);
 		pstRecv = pstTmp;
-		if (pstTmp == RCSR.pstHead) {
-			V(SEMRCSR);
+		if (pstTmp == RC_SR.pstHead) {
+			V(SEM_RC_SR);
 		}
 	}
 }
@@ -467,14 +467,14 @@ static void ProcessSvrMsg(void)
 void * ManageServer(void * arg)
 {
 	while(1) {
-		pthread_mutex_lock(&COMMMUTEX);
-		if (THDCOMMSLP) {
-			pthread_cond_wait(&COMMCOND, &COMMMUTEX);
+		pthread_mutex_lock(&COMM_MUTEX);
+		if (THD_COMM_SLP) {
+			pthread_cond_wait(&COMM_COND, &COMM_MUTEX);
 		}
 		ProcessSvrMsg();
 		PrintSvrMsg();
-		THDCOMMSLP = TRUE;
-		pthread_mutex_unlock(&COMMMUTEX);
+		THD_COMM_SLP = TRUE;
+		pthread_mutex_unlock(&COMM_MUTEX);
 	}
 	return (void *)0;
 }
