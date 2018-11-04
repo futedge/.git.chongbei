@@ -32,10 +32,14 @@ const u08 TP_MARK 	= 0x88;
 const u08 TP_FILT 	= 0x8D;
 const u08 TP_TAIL 	= 0x8F;
 const u08 TP_FT_NM	= 0x20;
+const u16 TP_TG_AB	= 0x00AB;
+const u16 TP_TG_BB	= 0x00BB;
 const u08 TP_ID_LN	= 5;
 const u08 TP_TG_LN	= 2;
 const u08 TP_LN_LN	= 2;
 const u08 TP_HT_LN	= 5;
+const u08 DEV_TYPE	= 2;
+const u08 LEN_ADD	= 2;
 
 data_t gData;
 

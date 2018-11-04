@@ -4,7 +4,7 @@
  *参数	: 
  *返回值: 
 ********************************************************************/
-void SendCmd()
+void SendCmd(void)
 {
 	SendCmd_t * pstCmd, * pstTmp;
 	P(SEM_ON_CM);

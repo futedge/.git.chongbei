@@ -115,8 +115,8 @@ void init(void)
 ********************************************************************/
 int main(int argc, char ** argv)
 {
-	pthread_t ThdLstDev, ThdLstSvr, ThdComm;
-	pthread_t	ThdDev, ThdOnCmd, ThdTrCmd;
+	pthread_t ThdLstDev, ThdLstSvr, ThdDev;
+	pthread_t ThdComm, ThdOnCmd, ThdTrCmd;
 	pthread_attr_t ThdAttr;
 	
 	if (argc > 2) {

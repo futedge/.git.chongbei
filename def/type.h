@@ -21,6 +21,24 @@ typedef unsigned int	u32;
 typedef unsigned long	u64;
 typedef enum {FALSE, TRUE} bool;
 
+// web端
+typedef struct tagServer_t {
+	int fd;				// web端连接文件描述符
+	time_t launch;		// web连接建立时间,创建时记录,终生不变
+	time_t update;		// web端最后一次更新时间
+	struct sockaddr_in	stAddr;
+	struct tagServer_t * pstPrev;
+	struct tagServer_t * pstNext;
+} server_t;
+
+// web端头
+typedef struct {
+	server_t * pstHead;	// web端链表头指针
+	server_t ** ppArr;	// web端指针数组,128站设置一个指针
+	u32 num;			// web端计数
+	int SvrFd;			// webserver linsten socket fd
+} web_t;
+
 // 待处理命令,收到相应反馈或超时后删除
 typedef struct tagCmd_t {
 	time_t time;		// 命令创建时间
@@ -82,24 +100,6 @@ typedef struct {
 	u32 num;			// 站计数
 	int SvrFd;			// station listen socket fd
 } devi_t;
-
-// web端
-typedef struct tagServer_t {
-	int fd;				// web端连接文件描述符
-	time_t launch;		// web连接建立时间,创建时记录,终生不变
-	time_t update;		// web端最后一次更新时间
-	struct sockaddr_in	stAddr;
-	struct tagServer_t * pstPrev;
-	struct tagServer_t * pstNext;
-} server_t;
-
-// web端头
-typedef struct {
-	server_t * pstHead;	// web端链表头指针
-	server_t ** ppArr;	// web端指针数组,128站设置一个指针
-	u32 num;			// web端计数
-	int SvrFd;			// webserver linsten socket fd
-} web_t;
 
 // 发送命令列表端头
 typedef struct tagSendCmd_t {
@@ -214,10 +214,14 @@ extern const u08 TP_MARK;
 extern const u08 TP_FILT;
 extern const u08 TP_TAIL;
 extern const u08 TP_FT_NM;
+extern const u16 TP_TG_AB;
+extern const u16 TP_TG_BB;
 extern const u08 TP_ID_LN;
 extern const u08 TP_TG_LN;
 extern const u08 TP_LN_LN;
 extern const u08 TP_HT_LN;
+extern const u08 DEV_TYPE;
+extern const u08 LEN_ADD;
 
 extern data_t gData;
 

@@ -51,22 +51,14 @@ static void DeleteThis(recv_t * pRecv)
  *参数	: 
  *返回值: 
 ********************************************************************/
-static void MakeHeartReply(u08 * pBuf, time_t NowTime)
-{
-	int i;
-	for (i = 0; i < TP_HT_LN - 1; i++) {
-		pBuf[i] = ((long)NowTime >> (TP_HT_LN - 2 - i) * 8) & 0xFF;
-	}
-	pBuf[i] = 1;
-}
-/********************************************************************
- *用途	: 
- *参数	: 
- *返回值: 
-********************************************************************/
 static void InitStationDevice(station_t * pstStation)
 {
-	
+	CmdParam_t CmdParam;
+	CmdParam.cmd = 0xA5;
+	CmdParam.port = 1;
+	V1_MakeCmd(pstStation, &CmdParam);
+	CmdParam.cmd = 0xA4;
+	V1_MakeCmd(pstStation, &CmdParam);
 }
 /********************************************************************
  *用途	: 
@@ -109,7 +101,7 @@ static station_t * NewStation(FSM_Condition_t * pstFSM_Step)
 	DV_HD.pHead->pstPrev->pstNext = pStation;
 	DV_HD.pHead->pstPrev = pStation;
 	InitStationData(pStation, pstFSM_Step->id);
-	InitStationDevice(pstFSM_Step);
+	InitStationDevice(pStation);
 	return pStation;
 }
 /********************************************************************
@@ -120,15 +112,16 @@ static station_t * NewStation(FSM_Condition_t * pstFSM_Step)
 static void AnalyseBB(FSM_Condition_t * pstFSM_Step)
 {
 	station_t * pstStation;
-	u08 buf[TP_HT_LN];
+	CmdParam_t CmdParam = {.cmd = 0};
+	u08 * pBuf;
 	if (!(pstStation = PosStation(pstFSM_Step->id))) {
 		pstStation = NewStation(pstFSM_Step);
-		InitStation(pstStation, pstFSM_Step);
-		// 添加初始化发送命令
 	}
-	pstStation->update = time(NULL);
+	else {
+		pstStation->update = time(NULL);
+	}
 	pstStation->stAddr = pstFSM_Step->stAddr;
-	MakeHeartReply(buf, pstStation->update - BASE_TIME);
+	pBuf = V1_MakeCmd(pstStation, &CmdParam);
 }
 /********************************************************************
  *用途	: 
@@ -285,8 +278,6 @@ static void FSM_ChargePort(FSM_ConditionCP_t * pstFSMStepCP, \
 			station_t * pstStation;
 			if (!(pstStation = PosStation(pstFSM_Step->id))) {
 				pstStation = NewStation(pstFSM_Step->id);
-				InitStation(pstStation, pstFSM_Step);
-				// 添加发送初始化命令
 			}
 			pstStation->stAddr = pstFSM_Step->stAddr;
 			ProcessAB(pstStation, pstFSMStepCP);
@@ -316,7 +307,6 @@ static void AnalyseAB(FSM_Condition_t * pstFSM_Step)
 			stFSMStepCP.checksum ^= 0xAA;
 			continue;
 			break;
-		default :
 		}
 		FSM_ChargePort(&stFSMStepCP, pstFSM_Step->pBuf[i], pstFSM_Step);
 	}
@@ -409,7 +399,7 @@ static void FSMTrnsPort(FSM_Condition_t * pstFSM_Step, u08 data)
 		break;
 	case E_data :
 		if (pstFSM_Step->pBuf == NULL) {
-			pstFSM_Step->len -= 2;
+			pstFSM_Step->len -= LEN_ADD_NUM;
 			if (!(pstFSM_Step->pBuf = (u08 *)malloc \
 												(pstFSM_Step->len))) {
 				perror("Not enough memory malloc for \
